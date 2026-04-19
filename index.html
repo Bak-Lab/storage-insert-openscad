@@ -3,253 +3,661 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Storage Insert Generator</title>
+  <title>Storage Insert Generator — Bak Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     :root {
       --bg: #0a0c10; --surface: #13161d; --surface2: #1a1e28;
       --border: #242838; --text: #d4d7e3; --text-hi: #eef0f7; --muted: #6a7094;
-      --green: #34d399; --green-dim: rgba(52,211,153,.08);
+      --accent: #34d399; --accent-dim: rgba(52,211,153,.12);
+      --danger: #f87171;
       --mono: 'JetBrains Mono', 'Fira Code', monospace;
       --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     }
-    html { scroll-behavior: smooth; }
-    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.65; min-height: 100vh; }
-    a { color: var(--green); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    code, pre { font-family: var(--mono); font-size: .88rem; }
-    code { background: var(--surface2); padding: 2px 7px; border-radius: 4px; font-size: .82rem; }
-    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; overflow-x: auto; line-height: 1.7; }
-    pre code { background: none; padding: 0; }
+    html, body { height: 100%; overflow: hidden; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); }
 
-    /* ── Nav ── */
-    .nav { position: sticky; top: 0; z-index: 50; background: rgba(10,12,16,.8); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); }
-    .nav-inner { max-width: 800px; margin: 0 auto; padding: 0 28px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
-    .nav-logo { font-family: var(--mono); font-weight: 700; font-size: .82rem; color: var(--muted); letter-spacing: .03em; }
-    .nav-logo b { color: var(--text-hi); }
-    .nav-links { display: flex; gap: 6px; }
-    .nav-links a { font-size: .78rem; font-weight: 500; color: var(--muted); padding: 5px 12px; border-radius: 6px; text-decoration: none; transition: all .15s; }
-    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,.04); text-decoration: none; }
-
-    /* ── Wrapper ── */
-    .wrap { max-width: 800px; margin: 0 auto; padding: 60px 28px 100px; }
-
-    /* ── Hero ── */
-    .badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: .68rem; font-weight: 500; color: var(--green); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 20px; }
-    .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
-    h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; letter-spacing: -.03em; line-height: 1.1; color: var(--text-hi); }
-    .subtitle { margin-top: 16px; font-size: 1.05rem; color: var(--muted); max-width: 540px; line-height: 1.7; }
-
-    /* ── Stats ── */
-    .stats { display: flex; gap: 28px; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); }
-    .stat-val { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; color: var(--text-hi); }
-    .stat-lbl { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
-
-    /* ── Sections ── */
-    .section { margin-top: 56px; }
-    .section-label { font-family: var(--mono); font-size: .7rem; font-weight: 500; color: var(--green); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
-    .section-label::before { content: ''; width: 16px; height: 1px; background: var(--green); }
-    h2 { font-size: 1.3rem; font-weight: 700; color: var(--text-hi); letter-spacing: -.02em; margin-bottom: 14px; }
-    .section p { color: var(--muted); margin-bottom: 12px; }
-
-    /* ── Feature grid ── */
-    .features { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
-    .feat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
-    .feat-icon { font-size: 1.2rem; margin-bottom: 8px; }
-    .feat h3 { font-size: .9rem; font-weight: 700; color: var(--text-hi); margin-bottom: 4px; }
-    .feat p { font-size: .8rem; color: var(--muted); margin: 0; }
-
-    /* ── Table ── */
-    table { width: 100%; border-collapse: collapse; font-size: .84rem; margin-top: 12px; }
-    th { text-align: left; font-family: var(--mono); font-size: .72rem; font-weight: 600; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; padding: 8px 12px; border-bottom: 1px solid var(--border); }
-    td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
-    td code { font-size: .78rem; }
-    tr:last-child td { border-bottom: none; }
-
-    /* ── Layout modes ── */
-    .layout-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-    .layout-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
-    .layout-card h3 { font-family: var(--mono); font-size: .88rem; font-weight: 700; color: var(--green); margin-bottom: 6px; }
-    .layout-card p { font-size: .84rem; color: var(--muted); margin: 0; }
-
-    /* ── Install block ── */
-    .install { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-top: 14px; }
-    .install-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
-    .install-row:last-child { margin-bottom: 0; }
-    .install-os { font-family: var(--mono); font-size: .72rem; font-weight: 600; color: var(--muted); min-width: 90px; }
-    .install-cmd { font-family: var(--mono); font-size: .8rem; color: var(--text); }
-
-    /* ── CTA ── */
-    .cta { margin-top: 56px; padding: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; text-align: center; }
-    .cta h2 { margin-bottom: 8px; }
-    .cta p { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
-    .cta-btn { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: .82rem; font-weight: 600; color: var(--bg); background: var(--green); padding: 10px 24px; border-radius: 8px; text-decoration: none; transition: background .15s; }
-    .cta-btn:hover { background: #5ee8b7; text-decoration: none; }
-    .cta-btn svg { width: 16px; height: 16px; }
-
-    /* ── Footer ── */
-    footer { border-top: 1px solid var(--border); max-width: 800px; margin: 0 auto; padding: 28px; display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); }
-
-    /* ── Responsive ── */
-    @media (max-width: 520px) {
-      .wrap { padding: 40px 20px 60px; }
-      .features { grid-template-columns: 1fr; }
-      .stats { gap: 18px; flex-wrap: wrap; }
-      footer { flex-direction: column; gap: 6px; padding: 20px; }
+    /* ── Header ── */
+    header {
+      height: 48px; background: var(--surface); border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between; padding: 0 16px;
     }
+    .logo { font-family: var(--mono); font-size: .82rem; font-weight: 700; color: var(--muted); }
+    .logo b { color: var(--text-hi); }
+    .header-actions { display: flex; gap: 8px; }
+    .btn {
+      font-family: var(--mono); font-size: .75rem; font-weight: 600;
+      padding: 6px 14px; border: none; border-radius: 6px; cursor: pointer; transition: all .15s;
+    }
+    .btn-accent { background: var(--accent); color: var(--bg); }
+    .btn-accent:hover { background: #5ee8b7; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--muted); }
+    .btn-outline:hover { border-color: var(--accent); color: var(--text); }
+    .btn-sm { padding: 5px 10px; font-size: .7rem; }
+
+    /* ── Main layout ── */
+    main { display: flex; height: calc(100vh - 48px); }
+
+    /* ── Left panel ── */
+    #panel {
+      width: 300px; min-width: 280px; background: var(--surface);
+      border-right: 1px solid var(--border); overflow-y: auto;
+      padding: 16px; display: flex; flex-direction: column; gap: 20px;
+    }
+    .panel-label {
+      font-family: var(--mono); font-size: .68rem; font-weight: 600;
+      color: var(--accent); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px;
+    }
+    .field-row {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    }
+    .field-row label {
+      font-size: .78rem; color: var(--muted); min-width: 72px;
+    }
+    .field-row input[type="number"] {
+      flex: 1; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      font-family: var(--mono); font-size: .78rem; padding: 5px 8px; border-radius: 4px; max-width: 90px;
+    }
+    .field-row input:focus { outline: none; border-color: var(--accent); }
+    .unit { font-size: .68rem; color: var(--muted); }
+
+    /* ── Grid Editor ── */
+    #gridWrap {
+      border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--bg);
+    }
+    #gridEditor { display: grid; gap: 0; width: 100%; }
+    .gcell {
+      cursor: pointer; transition: filter .1s; display: flex; align-items: center; justify-content: center;
+      font-family: var(--mono); font-size: .6rem; color: rgba(255,255,255,.25);
+      min-height: 20px; user-select: none;
+    }
+    .gcell:hover { filter: brightness(1.3); }
+    .gcell.selected { box-shadow: inset 0 0 0 2px var(--text-hi); z-index: 1; }
+    .grid-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .grid-actions .btn { flex: 1; }
+
+    /* ── Info bar ── */
+    .info-bar {
+      background: var(--surface2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; font-size: .72rem; color: var(--muted); line-height: 1.6;
+    }
+    .info-bar span { color: var(--text-hi); font-family: var(--mono); font-weight: 600; }
+
+    /* ── Viewport ── */
+    #viewport { flex: 1; position: relative; background: var(--bg); }
+    #viewport canvas { width: 100% !important; height: 100% !important; display: block; }
+
+    /* ── Viewport HUD ── */
+    .vp-hud {
+      position: absolute; bottom: 12px; left: 12px;
+      font-family: var(--mono); font-size: .65rem; color: var(--muted);
+      pointer-events: none;
+    }
+
+    /* ── Scrollbar ── */
+    #panel::-webkit-scrollbar { width: 4px; }
+    #panel::-webkit-scrollbar-track { background: transparent; }
+    #panel::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
   </style>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 </head>
 <body>
 
-<nav class="nav">
-  <div class="nav-inner">
-    <div class="nav-logo"><b>Bak</b>Lab / storage-insert</div>
-    <div class="nav-links">
-      <a href="#quickstart">Quick Start</a>
-      <a href="#options">Options</a>
-      <a href="https://github.com/Bak-Lab/storage-insert-openscad" target="_blank" rel="noopener">GitHub &nearr;</a>
-    </div>
+<header>
+  <div class="logo"><b>Bak</b>Lab / storage-insert-generator</div>
+  <div class="header-actions">
+    <a class="btn btn-outline btn-sm" href="https://github.com/Bak-Lab/storage-insert-openscad" target="_blank" rel="noopener">GitHub</a>
+    <button class="btn btn-outline btn-sm" id="btnScad">Download .scad</button>
+    <button class="btn btn-accent btn-sm" id="btnStl">Download STL</button>
   </div>
-</nav>
+</header>
 
-<div class="wrap">
-
-  <!-- Hero -->
-  <div class="badge">Open Source</div>
-  <h1>Storage Insert Generator</h1>
-  <p class="subtitle">Parametric drawer organizer generator. Python drives the dimensions, OpenSCAD renders, STL comes out ready for the printer.</p>
-
-  <div class="stats">
-    <div><div class="stat-val">Python</div><div class="stat-lbl">Language</div></div>
-    <div><div class="stat-val">OpenSCAD</div><div class="stat-lbl">Renderer</div></div>
-    <div><div class="stat-val">3</div><div class="stat-lbl">Layout Modes</div></div>
-    <div><div class="stat-val">0</div><div class="stat-lbl">Dependencies</div></div>
-  </div>
-
-  <!-- Features -->
-  <div class="section">
-    <div class="section-label">Features</div>
-    <div class="features">
-      <div class="feat">
-        <div class="feat-icon">&#9634;</div>
-        <h3>Grid Layouts</h3>
-        <p>Uniform N&times;M grids or custom proportional rows from JSON.</p>
-      </div>
-      <div class="feat">
-        <div class="feat-icon">&#9881;</div>
-        <h3>Parametric</h3>
-        <p>Control width, length, depth, wall thickness, and corner radius.</p>
-      </div>
-      <div class="feat">
-        <div class="feat-icon">&#128736;</div>
-        <h3>GUI Editor</h3>
-        <p>Tkinter GUI with drag-to-merge cells for custom compartment shapes.</p>
-      </div>
-      <div class="feat">
-        <div class="feat-icon">&#128230;</div>
-        <h3>STL Export</h3>
-        <p>Direct .scad &rarr; .stl conversion via OpenSCAD CLI.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- Quick Start -->
-  <div class="section" id="quickstart">
-    <div class="section-label">Quick Start</div>
-    <h2>Get running in 30 seconds</h2>
-    <p>Requires <strong>Python 3.10+</strong> and <strong>OpenSCAD</strong> (optional if you only want <code>.scad</code> files).</p>
-
-    <div class="install">
-      <div class="install-row"><span class="install-os">Ubuntu</span><span class="install-cmd">sudo apt install openscad</span></div>
-      <div class="install-row"><span class="install-os">Arch</span><span class="install-cmd">sudo pacman -S openscad</span></div>
-      <div class="install-row"><span class="install-os">macOS</span><span class="install-cmd">brew install openscad</span></div>
+<main>
+  <aside id="panel">
+    <div>
+      <div class="panel-label">Dimensions</div>
+      <div class="field-row"><label>Width</label><input type="number" id="fWidth" value="300" min="10" step="1"><span class="unit">mm</span></div>
+      <div class="field-row"><label>Length</label><input type="number" id="fLength" value="400" min="10" step="1"><span class="unit">mm</span></div>
+      <div class="field-row"><label>Depth</label><input type="number" id="fDepth" value="50" min="5" step="1"><span class="unit">mm</span></div>
+      <div class="field-row"><label>Wall</label><input type="number" id="fWall" value="2" min="0.4" step="0.1"><span class="unit">mm</span></div>
+      <div class="field-row"><label>Radius</label><input type="number" id="fRadius" value="3" min="0" step="0.5"><span class="unit">mm</span></div>
     </div>
 
-    <br>
-<pre><code><span style="color:var(--muted)"># Default storage layout, 300&times;400&times;50 mm</span>
-python generate.py --width 300 --length 400 --depth 50
+    <div>
+      <div class="panel-label">Grid</div>
+      <div class="field-row"><label>Rows</label><input type="number" id="fRows" value="2" min="1" max="20" step="1"></div>
+      <div class="field-row"><label>Columns</label><input type="number" id="fCols" value="3" min="1" max="20" step="1"></div>
+    </div>
 
-<span style="color:var(--muted)"># Uniform 4&times;3 grid</span>
-python generate.py --width 300 --length 400 --depth 50 --layout grid 4 3
-
-<span style="color:var(--muted)"># Custom layout from JSON</span>
-python generate.py --width 300 --length 400 --depth 50 --layout custom examples/custom_layout.json
-
-<span style="color:var(--muted)"># Just .scad, no OpenSCAD needed</span>
-python generate.py --width 300 --length 400 --depth 50 --scad-only</code></pre>
-  </div>
-
-  <!-- Options -->
-  <div class="section" id="options">
-    <div class="section-label">Options</div>
-    <h2>CLI Reference</h2>
-    <table>
-      <thead>
-        <tr><th>Flag</th><th>Default</th><th>Description</th></tr>
-      </thead>
-      <tbody>
-        <tr><td><code>--width</code></td><td><em>required</em></td><td>Outer width in mm (X axis)</td></tr>
-        <tr><td><code>--length</code></td><td><em>required</em></td><td>Outer length in mm (Y axis)</td></tr>
-        <tr><td><code>--depth</code></td><td><em>required</em></td><td>Outer depth in mm (Z axis)</td></tr>
-        <tr><td><code>--wall</code></td><td><code>2.0</code></td><td>Wall &amp; divider thickness (mm)</td></tr>
-        <tr><td><code>--corner-radius</code></td><td><code>3.0</code></td><td>Outer corner fillet radius (mm)</td></tr>
-        <tr><td><code>--layout</code></td><td><code>storage</code></td><td><code>storage</code>, <code>grid COLS ROWS</code>, or <code>custom PATH</code></td></tr>
-        <tr><td><code>--output</code></td><td><code>drawer_insert.stl</code></td><td>STL output path</td></tr>
-        <tr><td><code>--scad-only</code></td><td>off</td><td>Skip STL export, only write <code>.scad</code></td></tr>
-        <tr><td><code>--scad-output</code></td><td><code>drawer_insert.scad</code></td><td><code>.scad</code> file output path</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- Layout Modes -->
-  <div class="section">
-    <div class="section-label">Layouts</div>
-    <h2>Layout Modes</h2>
-    <div class="layout-cards">
-      <div class="layout-card">
-        <h3>storage</h3>
-        <p>Classic insert &mdash; large + small on top row, three equal cells on bottom. The default.</p>
+    <div>
+      <div class="panel-label">Layout Editor</div>
+      <p style="font-size:.7rem;color:var(--muted);margin-bottom:8px">Click cells to select. Shift+click to multi-select. Merge combines selected into one compartment.</p>
+      <div id="gridWrap">
+        <div id="gridEditor"></div>
       </div>
-      <div class="layout-card">
-        <h3>grid COLS ROWS</h3>
-        <p>Uniform grid of equal-sized compartments. Simple and fast.</p>
-      </div>
-      <div class="layout-card">
-        <h3>custom PATH</h3>
-        <p>JSON file with a 2D array of relative proportions per row. Full control.</p>
+      <div class="grid-actions">
+        <button class="btn btn-outline btn-sm" id="btnMerge">Merge</button>
+        <button class="btn btn-outline btn-sm" id="btnSplit">Split</button>
+        <button class="btn btn-outline btn-sm" id="btnReset">Reset</button>
       </div>
     </div>
 
-    <br>
-    <p>Custom JSON example:</p>
-<pre><code>{
-  "layout": [
-    [2, 1],
-    [1, 1.5, 1],
-    [1, 1]
-  ]
-}</code></pre>
+    <div class="info-bar" id="infoBar">
+      <span id="infoComps">6</span> compartments &middot; <span id="infoDims">300 &times; 400 &times; 50</span> mm
+    </div>
+  </aside>
+
+  <div id="viewport">
+    <canvas id="preview"></canvas>
+    <div class="vp-hud">scroll to zoom &middot; drag to orbit &middot; right-drag to pan</div>
   </div>
+</main>
 
-  <!-- CTA -->
-  <div class="cta">
-    <h2>Ready to generate?</h2>
-    <p>Clone the repo and start printing organizers.</p>
-    <a class="cta-btn" href="https://github.com/Bak-Lab/storage-insert-openscad" target="_blank" rel="noopener">
-      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.11.82-.26.82-.58v-2.16c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6.02 0c2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.7.82.58A12 12 0 0 0 12 .3"/></svg>
-      View on GitHub
-    </a>
-  </div>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { STLExporter } from 'three/addons/exporters/STLExporter.js';
+import * as BufferGeometryUtils from 'three/addons/utils/BufferGeometryUtils.js';
 
-</div>
+/* ══════════════════════════════════════════════════════════
+   State
+   ══════════════════════════════════════════════════════════ */
+let nRows = 2, nCols = 3;
+let grid = [];             // grid[r][c] = cellId
+let cellInfo = {};         // cellId -> Set of "r,c"
+let nextId = 0;
+let colWidths = [];
+let rowHeights = [];
+let selectedCells = new Set();
 
-<footer>
-  <span>&copy; 2026 Bak Lab</span>
-  <span>storage-insert-openscad</span>
-</footer>
+const $ = id => document.getElementById(id);
 
+function params() {
+  return {
+    width:  Math.max(10, parseFloat($('fWidth').value) || 300),
+    length: Math.max(10, parseFloat($('fLength').value) || 400),
+    depth:  Math.max(2,  parseFloat($('fDepth').value) || 50),
+    wall:   Math.max(0.4, parseFloat($('fWall').value) || 2),
+    radius: Math.max(0,   parseFloat($('fRadius').value) || 3),
+  };
+}
+
+/* ══════════════════════════════════════════════════════════
+   Grid Model
+   ══════════════════════════════════════════════════════════ */
+function initGrid(rows, cols) {
+  nRows = rows; nCols = cols;
+  grid = []; cellInfo = {}; nextId = 0;
+  colWidths = Array(cols).fill(1);
+  rowHeights = Array(rows).fill(1);
+  for (let r = 0; r < rows; r++) {
+    grid[r] = [];
+    for (let c = 0; c < cols; c++) {
+      const id = nextId++;
+      grid[r][c] = id;
+      cellInfo[id] = new Set([`${r},${c}`]);
+    }
+  }
+  selectedCells.clear();
+}
+
+function countCompartments() {
+  const ids = new Set();
+  for (let r = 0; r < nRows; r++)
+    for (let c = 0; c < nCols; c++) ids.add(grid[r][c]);
+  return ids.size;
+}
+
+function mergeSelected() {
+  if (selectedCells.size < 2) return;
+  const positions = [...selectedCells];
+  const [r0, c0] = positions[0].split(',').map(Number);
+  const targetId = grid[r0][c0];
+
+  for (const pos of positions) {
+    const [r, c] = pos.split(',').map(Number);
+    const oldId = grid[r][c];
+    if (oldId !== targetId && cellInfo[oldId]) {
+      for (const p of cellInfo[oldId]) {
+        cellInfo[targetId].add(p);
+        const [pr, pc] = p.split(',').map(Number);
+        grid[pr][pc] = targetId;
+      }
+      delete cellInfo[oldId];
+    }
+  }
+  selectedCells.clear();
+  renderGrid(); updatePreview();
+}
+
+function splitSelected() {
+  if (selectedCells.size < 1) return;
+  const ids = new Set();
+  for (const pos of selectedCells) {
+    const [r, c] = pos.split(',').map(Number);
+    ids.add(grid[r][c]);
+  }
+  for (const id of ids) {
+    if (!cellInfo[id] || cellInfo[id].size <= 1) continue;
+    const positions = [...cellInfo[id]];
+    for (let i = 1; i < positions.length; i++) {
+      const [r, c] = positions[i].split(',').map(Number);
+      const newId = nextId++;
+      grid[r][c] = newId;
+      cellInfo[newId] = new Set([positions[i]]);
+      cellInfo[id].delete(positions[i]);
+    }
+  }
+  selectedCells.clear();
+  renderGrid(); updatePreview();
+}
+
+/* ══════════════════════════════════════════════════════════
+   Cell Colors
+   ══════════════════════════════════════════════════════════ */
+const PALETTE = [
+  '#4a6fa5','#5b8c5a','#c4793a','#8e4585','#3a8a8c',
+  '#a0522d','#6b8e23','#cd5c5c','#4682b4','#d2691e',
+  '#556b2f','#8b668b','#2e8b57','#b8860b','#5f9ea0',
+  '#9370db','#20b2aa','#db7093','#6495ed','#bc8f8f',
+  '#48d1cc','#c71585','#7b68ee','#3cb371','#daa520',
+  '#ba55d3','#66cdaa','#ff6347','#4169e1','#d2b48c',
+];
+function cellColor(id) { return PALETTE[id % PALETTE.length]; }
+
+/* ══════════════════════════════════════════════════════════
+   Grid Editor Rendering
+   ══════════════════════════════════════════════════════════ */
+function renderGrid() {
+  const el = $('gridEditor');
+  const p = params();
+  el.style.gridTemplateColumns = colWidths.map(w => `${w}fr`).join(' ');
+  el.style.gridTemplateRows = rowHeights.map(h => `${h}fr`).join(' ');
+  $('gridWrap').style.aspectRatio = `${p.width} / ${p.length}`;
+
+  el.innerHTML = '';
+  for (let r = 0; r < nRows; r++) {
+    for (let c = 0; c < nCols; c++) {
+      const id = grid[r][c];
+      const cell = document.createElement('div');
+      cell.className = 'gcell';
+      if (selectedCells.has(`${r},${c}`)) cell.classList.add('selected');
+
+      const col = cellColor(id);
+      cell.style.background = col + '30';
+
+      const bw = '2px solid ' + col + '66';
+      const bi = '1px solid transparent';
+      cell.style.borderTop    = (r === 0 || grid[r-1][c] !== id) ? bw : bi;
+      cell.style.borderBottom = (r === nRows-1 || grid[r+1][c] !== id) ? bw : bi;
+      cell.style.borderLeft   = (c === 0 || grid[r][c-1] !== id) ? bw : bi;
+      cell.style.borderRight  = (c === nCols-1 || grid[r][c+1] !== id) ? bw : bi;
+
+      cell.addEventListener('click', (e) => {
+        const key = `${r},${c}`;
+        if (e.shiftKey || e.ctrlKey || e.metaKey) {
+          if (selectedCells.has(key)) selectedCells.delete(key); else selectedCells.add(key);
+        } else {
+          if (selectedCells.size === 1 && selectedCells.has(key)) selectedCells.clear();
+          else { selectedCells.clear(); selectedCells.add(key); }
+        }
+        renderGrid();
+      });
+
+      el.appendChild(cell);
+    }
+  }
+  updateInfo();
+}
+
+function updateInfo() {
+  const p = params();
+  $('infoComps').textContent = countCompartments();
+  $('infoDims').innerHTML = `${p.width} &times; ${p.length} &times; ${p.depth}`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Three.js Scene
+   ══════════════════════════════════════════════════════════ */
+const canvas = $('preview');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x0a0c10);
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
+camera.position.set(350, -400, 300);
+
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.target.set(0, 0, 25);
+
+// Lighting
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+dirLight.position.set(300, -200, 500);
+scene.add(dirLight);
+const dirLight2 = new THREE.DirectionalLight(0x8899cc, 0.3);
+dirLight2.position.set(-200, 300, 100);
+scene.add(dirLight2);
+
+// Ground grid
+const groundGrid = new THREE.GridHelper(600, 30, 0x242838, 0x181c28);
+groundGrid.rotation.x = Math.PI / 2;
+scene.add(groundGrid);
+
+let insertMesh = null;
+let edgeMesh = null;
+
+/* ── Rounded rect helpers ── */
+function makeRoundedRectShape(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  if (r < 0.01) r = 0.01;
+  const s = new THREE.Shape();
+  s.moveTo(x + r, y);
+  s.lineTo(x + w - r, y);
+  s.quadraticCurveTo(x + w, y, x + w, y + r);
+  s.lineTo(x + w, y + h - r);
+  s.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  s.lineTo(x + r, y + h);
+  s.quadraticCurveTo(x, y + h, x, y + h - r);
+  s.lineTo(x, y + r);
+  s.quadraticCurveTo(x, y, x + r, y);
+  return s;
+}
+
+function makeRoundedRectPath(x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  if (r < 0.01) r = 0.01;
+  const p = new THREE.Path();
+  p.moveTo(x + r, y);
+  p.lineTo(x + w - r, y);
+  p.quadraticCurveTo(x + w, y, x + w, y + r);
+  p.lineTo(x + w, y + h - r);
+  p.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  p.lineTo(x + r, y + h);
+  p.quadraticCurveTo(x, y + h, x, y + h - r);
+  p.lineTo(x, y + r);
+  p.quadraticCurveTo(x, y, x + r, y);
+  return p;
+}
+
+/* ── Compute grid line positions ── */
+function gridLinePositions(p) {
+  const innerW = p.width - 2 * p.wall;
+  const innerL = p.length - 2 * p.wall;
+  const totalCW = colWidths.reduce((a, b) => a + b, 0) || 1;
+  const totalRH = rowHeights.reduce((a, b) => a + b, 0) || 1;
+
+  const colX = [p.wall];
+  for (const cw of colWidths) colX.push(colX[colX.length - 1] + (cw / totalCW) * innerW);
+  const rowY = [p.wall];
+  for (const rh of rowHeights) rowY.push(rowY[rowY.length - 1] + (rh / totalRH) * innerL);
+
+  return { colX, rowY, innerW, innerL };
+}
+
+/* ── Build 3D geometry ── */
+function buildInsertGeometry() {
+  const p = params();
+  const { width, length, depth, wall, radius } = p;
+  const innerR = Math.max(radius - wall, 0.01);
+  const { colX, rowY, innerW, innerL } = gridLinePositions(p);
+  const geos = [];
+  const curveSegs = 12;
+
+  // 1. Bottom plate
+  const bottomShape = makeRoundedRectShape(0, 0, width, length, radius);
+  geos.push(new THREE.ExtrudeGeometry(bottomShape, { depth: wall, bevelEnabled: false, curveSegments: curveSegs }));
+
+  // 2. Outer walls (shell ring)
+  const wallShape = makeRoundedRectShape(0, 0, width, length, radius);
+  wallShape.holes.push(makeRoundedRectPath(wall, wall, innerW, innerL, innerR));
+  geos.push(new THREE.ExtrudeGeometry(wallShape, { depth: depth, bevelEnabled: false, curveSegments: curveSegs }));
+
+  // 3. Horizontal dividers (between rows where cell IDs differ)
+  for (let r = 1; r < nRows; r++) {
+    let c = 0;
+    while (c < nCols) {
+      if (grid[r - 1][c] !== grid[r][c]) {
+        const cStart = c;
+        while (c < nCols && grid[r - 1][c] !== grid[r][c]) c++;
+        const dw = colX[c] - colX[cStart];
+        const g = new THREE.BoxGeometry(dw, wall, depth);
+        g.translate(colX[cStart] + dw / 2, rowY[r], depth / 2);
+        geos.push(g);
+      } else c++;
+    }
+  }
+
+  // 4. Vertical dividers (between columns where cell IDs differ)
+  for (let c = 1; c < nCols; c++) {
+    let r = 0;
+    while (r < nRows) {
+      if (grid[r][c - 1] !== grid[r][c]) {
+        const rStart = r;
+        while (r < nRows && grid[r][c - 1] !== grid[r][c]) r++;
+        const dh = rowY[r] - rowY[rStart];
+        const g = new THREE.BoxGeometry(wall, dh, depth);
+        g.translate(colX[c], rowY[rStart] + dh / 2, depth / 2);
+        geos.push(g);
+      } else r++;
+    }
+  }
+
+  // Merge all, center at origin
+  const merged = BufferGeometryUtils.mergeGeometries(geos.map(g => g.toNonIndexed()));
+  merged.translate(-width / 2, -length / 2, 0);
+  merged.computeVertexNormals();
+  return merged;
+}
+
+/* ── Update 3D preview ── */
+function updatePreview() {
+  if (insertMesh) {
+    scene.remove(insertMesh);
+    insertMesh.geometry.dispose();
+    insertMesh.material.dispose();
+  }
+  if (edgeMesh) {
+    scene.remove(edgeMesh);
+    edgeMesh.geometry.dispose();
+    edgeMesh.material.dispose();
+  }
+
+  const geo = buildInsertGeometry();
+
+  const mat = new THREE.MeshPhongMaterial({
+    color: 0xb0b8c8,
+    specular: 0x222222,
+    shininess: 25,
+  });
+  insertMesh = new THREE.Mesh(geo, mat);
+  scene.add(insertMesh);
+
+  // Edge wireframe for visual clarity
+  const edgeGeo = new THREE.EdgesGeometry(geo, 15);
+  const edgeMat = new THREE.LineBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.15 });
+  edgeMesh = new THREE.LineSegments(edgeGeo, edgeMat);
+  scene.add(edgeMesh);
+
+  updateInfo();
+}
+
+/* ══════════════════════════════════════════════════════════
+   STL Export
+   ══════════════════════════════════════════════════════════ */
+function downloadSTL() {
+  if (!insertMesh) return;
+  const exporter = new STLExporter();
+  const result = exporter.parse(insertMesh, { binary: true });
+  const blob = new Blob([result], { type: 'application/octet-stream' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'storage_insert.stl';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ══════════════════════════════════════════════════════════
+   SCAD Export (matches generate.py output format)
+   ══════════════════════════════════════════════════════════ */
+function downloadSCAD() {
+  const p = params();
+  const { colX, rowY } = gridLinePositions(p);
+  const lines = [
+    '// ===== Auto-generated storage insert drawer =====',
+    `// Outer dims: ${p.width} x ${p.length} x ${p.depth} mm, wall: ${p.wall} mm`,
+    `// Grid: ${nRows} rows x ${nCols} cols`,
+    '',
+    '/* [Dimensions] */',
+    `outer_w = ${p.width};`,
+    `outer_l = ${p.length};`,
+    `outer_d = ${p.depth};`,
+    `wall    = ${p.wall};`,
+    `cr      = ${p.radius};`,
+    '',
+    '$fn = 40;',
+    '',
+    'module rrect(w, l, h, r) {',
+    '    r_ = min(r, w/2, l/2);',
+    '    translate([r_, r_, 0])',
+    '        minkowski() {',
+    '            cube([w - 2*r_, l - 2*r_, h/2]);',
+    '            cylinder(r=r_, h=h/2);',
+    '        }',
+    '}',
+    '',
+    'module insert() {',
+    '    difference() {',
+    '        rrect(outer_w, outer_l, outer_d, cr);',
+    '        translate([wall, wall, wall])',
+    '            rrect(outer_w - 2*wall, outer_l - 2*wall, outer_d, max(cr - wall, 0.01));',
+    '    }',
+    '',
+  ];
+
+  // Collect divider segments
+  const hSegs = [];
+  for (let r = 1; r < nRows; r++) {
+    let c = 0;
+    while (c < nCols) {
+      if (grid[r - 1][c] !== grid[r][c]) {
+        const s = c;
+        while (c < nCols && grid[r - 1][c] !== grid[r][c]) c++;
+        hSegs.push([colX[s], colX[c], rowY[r]]);
+      } else c++;
+    }
+  }
+
+  const vSegs = [];
+  for (let c = 1; c < nCols; c++) {
+    let r = 0;
+    while (r < nRows) {
+      if (grid[r][c - 1] !== grid[r][c]) {
+        const s = r;
+        while (r < nRows && grid[r][c - 1] !== grid[r][c]) r++;
+        vSegs.push([colX[c], rowY[s], rowY[r]]);
+      } else r++;
+    }
+  }
+
+  if (hSegs.length || vSegs.length) {
+    lines.push('    // Dividers with rounded corners');
+    lines.push('    linear_extrude(height=outer_d)');
+    lines.push('        offset(r=wall/2) {');
+    for (const [xs, xe, yc] of hSegs) {
+      lines.push(`            translate([${xs.toFixed(4)}, ${(yc - 0.005).toFixed(4)}])`);
+      lines.push(`                square([${(xe - xs).toFixed(4)}, 0.01]);`);
+    }
+    for (const [xc, ys, ye] of vSegs) {
+      lines.push(`            translate([${(xc - 0.005).toFixed(4)}, ${ys.toFixed(4)}])`);
+      lines.push(`                square([0.01, ${(ye - ys).toFixed(4)}]);`);
+    }
+    lines.push('        }');
+    lines.push('');
+  }
+
+  lines.push('}');
+  lines.push('');
+  lines.push('insert();');
+  lines.push('');
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'storage_insert.scad';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ══════════════════════════════════════════════════════════
+   Animation Loop
+   ══════════════════════════════════════════════════════════ */
+function animate() {
+  requestAnimationFrame(animate);
+  controls.update();
+  renderer.render(scene, camera);
+}
+
+function resize() {
+  const vp = $('viewport');
+  const w = vp.clientWidth;
+  const h = vp.clientHeight;
+  if (w === 0 || h === 0) return;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+}
+
+/* ══════════════════════════════════════════════════════════
+   Events
+   ══════════════════════════════════════════════════════════ */
+window.addEventListener('resize', resize);
+
+// Dimension inputs → live update
+['fWidth', 'fLength', 'fDepth', 'fWall', 'fRadius'].forEach(id => {
+  $(id).addEventListener('input', () => { updatePreview(); renderGrid(); });
+});
+
+// Grid size → reset
+$('fRows').addEventListener('change', () => {
+  initGrid(Math.max(1, parseInt($('fRows').value) || 2), nCols);
+  renderGrid(); updatePreview();
+});
+$('fCols').addEventListener('change', () => {
+  initGrid(nRows, Math.max(1, parseInt($('fCols').value) || 3));
+  renderGrid(); updatePreview();
+});
+
+// Grid actions
+$('btnMerge').addEventListener('click', mergeSelected);
+$('btnSplit').addEventListener('click', splitSelected);
+$('btnReset').addEventListener('click', () => { initGrid(nRows, nCols); renderGrid(); updatePreview(); });
+
+// Download
+$('btnStl').addEventListener('click', downloadSTL);
+$('btnScad').addEventListener('click', downloadSCAD);
+
+/* ══════════════════════════════════════════════════════════
+   Init
+   ══════════════════════════════════════════════════════════ */
+initGrid(2, 3);
+renderGrid();
+resize();
+updatePreview();
+animate();
+</script>
 </body>
 </html>
