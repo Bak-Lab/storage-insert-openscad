@@ -68,11 +68,11 @@
     #gridWrap {
       border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--bg);
     }
-    #gridEditor { display: grid; gap: 0; width: 100%; }
+    #gridEditor { display: grid; gap: 0; width: 100%; height: 100%; }
     .gcell {
       cursor: pointer; transition: filter .1s; display: flex; align-items: center; justify-content: center;
       font-family: var(--mono); font-size: .6rem; color: rgba(255,255,255,.25);
-      min-height: 20px; user-select: none;
+      user-select: none;
     }
     .gcell:hover { filter: brightness(1.3); }
     .gcell.selected { box-shadow: inset 0 0 0 2px var(--text-hi); z-index: 1; }
@@ -417,6 +417,9 @@ function buildInsertGeometry() {
   const geos = [];
   const curveSegs = 12;
 
+  // Flip grid rows so editor top (row 0) maps to high Y (far side in 3D view)
+  const fGrid = grid.slice().reverse();
+
   // 1. Bottom plate
   const bottomShape = makeRoundedRectShape(0, 0, width, length, radius);
   geos.push(new THREE.ExtrudeGeometry(bottomShape, { depth: wall, bevelEnabled: false, curveSegments: curveSegs }));
@@ -430,9 +433,9 @@ function buildInsertGeometry() {
   for (let r = 1; r < nRows; r++) {
     let c = 0;
     while (c < nCols) {
-      if (grid[r - 1][c] !== grid[r][c]) {
+      if (fGrid[r - 1][c] !== fGrid[r][c]) {
         const cStart = c;
-        while (c < nCols && grid[r - 1][c] !== grid[r][c]) c++;
+        while (c < nCols && fGrid[r - 1][c] !== fGrid[r][c]) c++;
         const dw = colX[c] - colX[cStart];
         const g = new THREE.BoxGeometry(dw, wall, depth);
         g.translate(colX[cStart] + dw / 2, rowY[r], depth / 2);
@@ -445,9 +448,9 @@ function buildInsertGeometry() {
   for (let c = 1; c < nCols; c++) {
     let r = 0;
     while (r < nRows) {
-      if (grid[r][c - 1] !== grid[r][c]) {
+      if (fGrid[r][c - 1] !== fGrid[r][c]) {
         const rStart = r;
-        while (r < nRows && grid[r][c - 1] !== grid[r][c]) r++;
+        while (r < nRows && fGrid[r][c - 1] !== fGrid[r][c]) r++;
         const dh = rowY[r] - rowY[rStart];
         const g = new THREE.BoxGeometry(wall, dh, depth);
         g.translate(colX[c], rowY[rStart] + dh / 2, depth / 2);
