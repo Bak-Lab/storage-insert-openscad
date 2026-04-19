@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Storage Insert Generator</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0c10; --surface: #13161d; --surface2: #1a1e28;
+      --border: #242838; --text: #d4d7e3; --text-hi: #eef0f7; --muted: #6a7094;
+      --green: #34d399; --green-dim: rgba(52,211,153,.08);
+      --mono: 'JetBrains Mono', 'Fira Code', monospace;
+      --sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--sans); background: var(--bg); color: var(--text); line-height: 1.65; min-height: 100vh; }
+    a { color: var(--green); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    code, pre { font-family: var(--mono); font-size: .88rem; }
+    code { background: var(--surface2); padding: 2px 7px; border-radius: 4px; font-size: .82rem; }
+    pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; overflow-x: auto; line-height: 1.7; }
+    pre code { background: none; padding: 0; }
+
+    /* ── Nav ── */
+    .nav { position: sticky; top: 0; z-index: 50; background: rgba(10,12,16,.8); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 800px; margin: 0 auto; padding: 0 28px; height: 52px; display: flex; align-items: center; justify-content: space-between; }
+    .nav-logo { font-family: var(--mono); font-weight: 700; font-size: .82rem; color: var(--muted); letter-spacing: .03em; }
+    .nav-logo b { color: var(--text-hi); }
+    .nav-links { display: flex; gap: 6px; }
+    .nav-links a { font-size: .78rem; font-weight: 500; color: var(--muted); padding: 5px 12px; border-radius: 6px; text-decoration: none; transition: all .15s; }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,.04); text-decoration: none; }
+
+    /* ── Wrapper ── */
+    .wrap { max-width: 800px; margin: 0 auto; padding: 60px 28px 100px; }
+
+    /* ── Hero ── */
+    .badge { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: .68rem; font-weight: 500; color: var(--green); letter-spacing: .06em; text-transform: uppercase; margin-bottom: 20px; }
+    .badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--green); box-shadow: 0 0 8px var(--green); }
+    h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); font-weight: 800; letter-spacing: -.03em; line-height: 1.1; color: var(--text-hi); }
+    .subtitle { margin-top: 16px; font-size: 1.05rem; color: var(--muted); max-width: 540px; line-height: 1.7; }
+
+    /* ── Stats ── */
+    .stats { display: flex; gap: 28px; margin-top: 32px; padding-top: 24px; border-top: 1px solid var(--border); }
+    .stat-val { font-family: var(--mono); font-size: 1.1rem; font-weight: 700; color: var(--text-hi); }
+    .stat-lbl { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+
+    /* ── Sections ── */
+    .section { margin-top: 56px; }
+    .section-label { font-family: var(--mono); font-size: .7rem; font-weight: 500; color: var(--green); letter-spacing: .07em; text-transform: uppercase; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+    .section-label::before { content: ''; width: 16px; height: 1px; background: var(--green); }
+    h2 { font-size: 1.3rem; font-weight: 700; color: var(--text-hi); letter-spacing: -.02em; margin-bottom: 14px; }
+    .section p { color: var(--muted); margin-bottom: 12px; }
+
+    /* ── Feature grid ── */
+    .features { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+    .feat { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    .feat-icon { font-size: 1.2rem; margin-bottom: 8px; }
+    .feat h3 { font-size: .9rem; font-weight: 700; color: var(--text-hi); margin-bottom: 4px; }
+    .feat p { font-size: .8rem; color: var(--muted); margin: 0; }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; font-size: .84rem; margin-top: 12px; }
+    th { text-align: left; font-family: var(--mono); font-size: .72rem; font-weight: 600; color: var(--muted); letter-spacing: .04em; text-transform: uppercase; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+    td { padding: 9px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+    td code { font-size: .78rem; }
+    tr:last-child td { border-bottom: none; }
+
+    /* ── Layout modes ── */
+    .layout-cards { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+    .layout-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+    .layout-card h3 { font-family: var(--mono); font-size: .88rem; font-weight: 700; color: var(--green); margin-bottom: 6px; }
+    .layout-card p { font-size: .84rem; color: var(--muted); margin: 0; }
+
+    /* ── Install block ── */
+    .install { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px 24px; margin-top: 14px; }
+    .install-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+    .install-row:last-child { margin-bottom: 0; }
+    .install-os { font-family: var(--mono); font-size: .72rem; font-weight: 600; color: var(--muted); min-width: 90px; }
+    .install-cmd { font-family: var(--mono); font-size: .8rem; color: var(--text); }
+
+    /* ── CTA ── */
+    .cta { margin-top: 56px; padding: 32px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; text-align: center; }
+    .cta h2 { margin-bottom: 8px; }
+    .cta p { color: var(--muted); font-size: .92rem; margin-bottom: 20px; }
+    .cta-btn { display: inline-flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: .82rem; font-weight: 600; color: var(--bg); background: var(--green); padding: 10px 24px; border-radius: 8px; text-decoration: none; transition: background .15s; }
+    .cta-btn:hover { background: #5ee8b7; text-decoration: none; }
+    .cta-btn svg { width: 16px; height: 16px; }
+
+    /* ── Footer ── */
+    footer { border-top: 1px solid var(--border); max-width: 800px; margin: 0 auto; padding: 28px; display: flex; justify-content: space-between; font-size: .72rem; color: var(--muted); }
+
+    /* ── Responsive ── */
+    @media (max-width: 520px) {
+      .wrap { padding: 40px 20px 60px; }
+      .features { grid-template-columns: 1fr; }
+      .stats { gap: 18px; flex-wrap: wrap; }
+      footer { flex-direction: column; gap: 6px; padding: 20px; }
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-logo"><b>Bak</b>Lab / storage-insert</div>
+    <div class="nav-links">
+      <a href="#quickstart">Quick Start</a>
+      <a href="#options">Options</a>
+      <a href="https://github.com/Bak-Lab/storage-insert-openscad" target="_blank" rel="noopener">GitHub &nearr;</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- Hero -->
+  <div class="badge">Open Source</div>
+  <h1>Storage Insert Generator</h1>
+  <p class="subtitle">Parametric drawer organizer generator. Python drives the dimensions, OpenSCAD renders, STL comes out ready for the printer.</p>
+
+  <div class="stats">
+    <div><div class="stat-val">Python</div><div class="stat-lbl">Language</div></div>
+    <div><div class="stat-val">OpenSCAD</div><div class="stat-lbl">Renderer</div></div>
+    <div><div class="stat-val">3</div><div class="stat-lbl">Layout Modes</div></div>
+    <div><div class="stat-val">0</div><div class="stat-lbl">Dependencies</div></div>
+  </div>
+
+  <!-- Features -->
+  <div class="section">
+    <div class="section-label">Features</div>
+    <div class="features">
+      <div class="feat">
+        <div class="feat-icon">&#9634;</div>
+        <h3>Grid Layouts</h3>
+        <p>Uniform N&times;M grids or custom proportional rows from JSON.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">&#9881;</div>
+        <h3>Parametric</h3>
+        <p>Control width, length, depth, wall thickness, and corner radius.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">&#128736;</div>
+        <h3>GUI Editor</h3>
+        <p>Tkinter GUI with drag-to-merge cells for custom compartment shapes.</p>
+      </div>
+      <div class="feat">
+        <div class="feat-icon">&#128230;</div>
+        <h3>STL Export</h3>
+        <p>Direct .scad &rarr; .stl conversion via OpenSCAD CLI.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Start -->
+  <div class="section" id="quickstart">
+    <div class="section-label">Quick Start</div>
+    <h2>Get running in 30 seconds</h2>
+    <p>Requires <strong>Python 3.10+</strong> and <strong>OpenSCAD</strong> (optional if you only want <code>.scad</code> files).</p>
+
+    <div class="install">
+      <div class="install-row"><span class="install-os">Ubuntu</span><span class="install-cmd">sudo apt install openscad</span></div>
+      <div class="install-row"><span class="install-os">Arch</span><span class="install-cmd">sudo pacman -S openscad</span></div>
+      <div class="install-row"><span class="install-os">macOS</span><span class="install-cmd">brew install openscad</span></div>
+    </div>
+
+    <br>
+<pre><code><span style="color:var(--muted)"># Default storage layout, 300&times;400&times;50 mm</span>
+python generate.py --width 300 --length 400 --depth 50
+
+<span style="color:var(--muted)"># Uniform 4&times;3 grid</span>
+python generate.py --width 300 --length 400 --depth 50 --layout grid 4 3
+
+<span style="color:var(--muted)"># Custom layout from JSON</span>
+python generate.py --width 300 --length 400 --depth 50 --layout custom examples/custom_layout.json
+
+<span style="color:var(--muted)"># Just .scad, no OpenSCAD needed</span>
+python generate.py --width 300 --length 400 --depth 50 --scad-only</code></pre>
+  </div>
+
+  <!-- Options -->
+  <div class="section" id="options">
+    <div class="section-label">Options</div>
+    <h2>CLI Reference</h2>
+    <table>
+      <thead>
+        <tr><th>Flag</th><th>Default</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>--width</code></td><td><em>required</em></td><td>Outer width in mm (X axis)</td></tr>
+        <tr><td><code>--length</code></td><td><em>required</em></td><td>Outer length in mm (Y axis)</td></tr>
+        <tr><td><code>--depth</code></td><td><em>required</em></td><td>Outer depth in mm (Z axis)</td></tr>
+        <tr><td><code>--wall</code></td><td><code>2.0</code></td><td>Wall &amp; divider thickness (mm)</td></tr>
+        <tr><td><code>--corner-radius</code></td><td><code>3.0</code></td><td>Outer corner fillet radius (mm)</td></tr>
+        <tr><td><code>--layout</code></td><td><code>storage</code></td><td><code>storage</code>, <code>grid COLS ROWS</code>, or <code>custom PATH</code></td></tr>
+        <tr><td><code>--output</code></td><td><code>drawer_insert.stl</code></td><td>STL output path</td></tr>
+        <tr><td><code>--scad-only</code></td><td>off</td><td>Skip STL export, only write <code>.scad</code></td></tr>
+        <tr><td><code>--scad-output</code></td><td><code>drawer_insert.scad</code></td><td><code>.scad</code> file output path</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Layout Modes -->
+  <div class="section">
+    <div class="section-label">Layouts</div>
+    <h2>Layout Modes</h2>
+    <div class="layout-cards">
+      <div class="layout-card">
+        <h3>storage</h3>
+        <p>Classic insert &mdash; large + small on top row, three equal cells on bottom. The default.</p>
+      </div>
+      <div class="layout-card">
+        <h3>grid COLS ROWS</h3>
+        <p>Uniform grid of equal-sized compartments. Simple and fast.</p>
+      </div>
+      <div class="layout-card">
+        <h3>custom PATH</h3>
+        <p>JSON file with a 2D array of relative proportions per row. Full control.</p>
+      </div>
+    </div>
+
+    <br>
+    <p>Custom JSON example:</p>
+<pre><code>{
+  "layout": [
+    [2, 1],
+    [1, 1.5, 1],
+    [1, 1]
+  ]
+}</code></pre>
+  </div>
+
+  <!-- CTA -->
+  <div class="cta">
+    <h2>Ready to generate?</h2>
+    <p>Clone the repo and start printing organizers.</p>
+    <a class="cta-btn" href="https://github.com/Bak-Lab/storage-insert-openscad" target="_blank" rel="noopener">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .3a12 12 0 0 0-3.8 23.38c.6.11.82-.26.82-.58v-2.16c-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.74.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .1-.78.42-1.31.76-1.61-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1-.32 3.3 1.23a11.5 11.5 0 0 1 6.02 0c2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.25 2.88.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.29c0 .32.21.7.82.58A12 12 0 0 0 12 .3"/></svg>
+      View on GitHub
+    </a>
+  </div>
+
+</div>
+
+<footer>
+  <span>&copy; 2026 Bak Lab</span>
+  <span>storage-insert-openscad</span>
+</footer>
+
+</body>
+</html>
