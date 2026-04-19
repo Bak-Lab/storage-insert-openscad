@@ -67,6 +67,7 @@
     /* ── Grid Editor ── */
     #gridWrap {
       border: 1px solid var(--border); border-radius: 8px; padding: 8px; background: var(--bg);
+      position: relative;
     }
     #gridEditor { display: grid; gap: 0; width: 100%; height: 100%; }
     .gcell {
@@ -76,8 +77,45 @@
     }
     .gcell:hover { filter: brightness(1.3); }
     .gcell.selected { box-shadow: inset 0 0 0 2px var(--text-hi); z-index: 1; }
+    .divider-handle {
+      position: absolute; z-index: 5; background: transparent;
+      transition: background .15s;
+    }
+    .divider-handle:hover, .divider-handle.active {
+      background: rgba(52,211,153,.35);
+    }
+    .divider-handle.dh-col {
+      cursor: col-resize; width: 8px; top: 8px; bottom: 8px;
+      transform: translateX(-4px);
+    }
+    .divider-handle.dh-row {
+      cursor: row-resize; height: 8px; left: 8px; right: 8px;
+      transform: translateY(-4px);
+    }
     .grid-actions { display: flex; gap: 6px; margin-top: 8px; }
     .grid-actions .btn { flex: 1; }
+
+    /* ── Toggle switch ── */
+    .toggle-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .toggle-row > label { font-size: .78rem; color: var(--muted); min-width: 72px; }
+    .toggle { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+    .toggle input { display: none; }
+    .toggle-track {
+      position: absolute; inset: 0; background: var(--border); border-radius: 10px;
+      cursor: pointer; transition: background .2s;
+    }
+    .toggle-track::after {
+      content: ''; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px;
+      background: var(--muted); border-radius: 50%; transition: transform .2s, background .2s;
+    }
+    .toggle input:checked + .toggle-track { background: var(--accent); }
+    .toggle input:checked + .toggle-track::after { transform: translateX(16px); background: var(--bg); }
+    .unit-btns { display: flex; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+    .unit-btn {
+      font-family: var(--mono); font-size: .7rem; font-weight: 600; padding: 3px 10px;
+      background: transparent; border: none; color: var(--muted); cursor: pointer; transition: all .15s;
+    }
+    .unit-btn.active { background: var(--accent); color: var(--bg); }
 
     /* ── Info bar ── */
     .info-bar {
@@ -118,11 +156,28 @@
   <aside id="panel">
     <div>
       <div class="panel-label">Dimensions</div>
-      <div class="field-row"><label>Width</label><input type="number" id="fWidth" value="300" min="10" step="1"><span class="unit">mm</span></div>
-      <div class="field-row"><label>Length</label><input type="number" id="fLength" value="400" min="10" step="1"><span class="unit">mm</span></div>
-      <div class="field-row"><label>Depth</label><input type="number" id="fDepth" value="50" min="5" step="1"><span class="unit">mm</span></div>
-      <div class="field-row"><label>Wall</label><input type="number" id="fWall" value="2" min="0.4" step="0.1"><span class="unit">mm</span></div>
-      <div class="field-row"><label>Radius</label><input type="number" id="fRadius" value="3" min="0" step="0.5"><span class="unit">mm</span></div>
+      <div class="field-row" style="margin-bottom:12px"><label>Units</label>
+        <div class="unit-btns">
+          <button class="unit-btn active" data-unit="mm">mm</button>
+          <button class="unit-btn" data-unit="in">in</button>
+        </div>
+      </div>
+      <div class="field-row"><label>Width</label><input type="number" id="fWidth" value="300" min="10" step="1"><span class="unit unit-label">mm</span></div>
+      <div class="field-row"><label>Length</label><input type="number" id="fLength" value="400" min="10" step="1"><span class="unit unit-label">mm</span></div>
+      <div class="field-row"><label>Depth</label><input type="number" id="fDepth" value="50" min="5" step="1"><span class="unit unit-label">mm</span></div>
+      <div class="field-row"><label>Wall</label><input type="number" id="fWall" value="2" min="0.4" step="0.1"><span class="unit unit-label">mm</span></div>
+      <div class="field-row"><label>Radius</label><input type="number" id="fRadius" value="3" min="0" step="0.5"><span class="unit unit-label">mm</span></div>
+    </div>
+
+    <div>
+      <div class="panel-label">Print Settings</div>
+      <div class="field-row"><label>Gap</label><input type="number" id="fGap" value="0" min="0" step="0.1"><span class="unit unit-label">mm</span></div>
+      <p style="font-size:.65rem;color:var(--muted);margin:-4px 0 8px 80px">Clearance per side for print tolerance</p>
+      <div class="toggle-row">
+        <label>Stackable</label>
+        <div class="toggle"><input type="checkbox" id="fStack"><label for="fStack" class="toggle-track"></label></div>
+      </div>
+      <div class="field-row" id="stackHeightRow" style="display:none"><label>Stack Lip</label><input type="number" id="fStackH" value="2" min="0.5" step="0.5"><span class="unit unit-label">mm</span></div>
     </div>
 
     <div>
@@ -152,6 +207,7 @@
   <div id="viewport">
     <canvas id="preview"></canvas>
     <div class="vp-hud">scroll to zoom &middot; drag to orbit &middot; right-drag to pan</div>
+    <div style="position:absolute;bottom:12px;right:12px;font-family:var(--mono);font-size:.6rem;color:var(--muted);pointer-events:none;">&copy; 2026 Justin Bak</div>
   </div>
 </main>
 
@@ -179,16 +235,24 @@ let nextId = 0;
 let colWidths = [];
 let rowHeights = [];
 let selectedCells = new Set();
+let currentUnit = 'mm'; // 'mm' or 'in'
+const IN_TO_MM = 25.4;
 
 const $ = id => document.getElementById(id);
 
+function toMM(v) { return currentUnit === 'in' ? v * IN_TO_MM : v; }
+
 function params() {
+  const gap = Math.max(0, toMM(parseFloat($('fGap').value) || 0));
   return {
-    width:  Math.max(10, parseFloat($('fWidth').value) || 300),
-    length: Math.max(10, parseFloat($('fLength').value) || 400),
-    depth:  Math.max(2,  parseFloat($('fDepth').value) || 50),
-    wall:   Math.max(0.4, parseFloat($('fWall').value) || 2),
-    radius: Math.max(0,   parseFloat($('fRadius').value) || 3),
+    width:      Math.max(10, toMM(parseFloat($('fWidth').value) || 300)),
+    length:     Math.max(10, toMM(parseFloat($('fLength').value) || 400)),
+    depth:      Math.max(2,  toMM(parseFloat($('fDepth').value) || 50)),
+    wall:       Math.max(0.4, toMM(parseFloat($('fWall').value) || 2)),
+    radius:     Math.max(0,   toMM(parseFloat($('fRadius').value) || 3)),
+    gap:        gap,
+    stacking:   $('fStack').checked,
+    stackH:     Math.max(0.5, toMM(parseFloat($('fStackH').value) || 2)),
   };
 }
 
@@ -280,10 +344,39 @@ function cellColor(id) { return PALETTE[id % PALETTE.length]; }
    ══════════════════════════════════════════════════════════ */
 function renderGrid() {
   const el = $('gridEditor');
+  const wrap = $('gridWrap');
   const p = params();
   el.style.gridTemplateColumns = colWidths.map(w => `${w}fr`).join(' ');
   el.style.gridTemplateRows = rowHeights.map(h => `${h}fr`).join(' ');
-  $('gridWrap').style.aspectRatio = `${p.width} / ${p.length}`;
+  wrap.style.aspectRatio = `${p.width} / ${p.length}`;
+
+  // Remove old divider handles
+  wrap.querySelectorAll('.divider-handle').forEach(h => h.remove());
+
+  // Add column divider handles
+  const totalCW = colWidths.reduce((a, b) => a + b, 0);
+  let cumCW = 0;
+  for (let ci = 0; ci < nCols - 1; ci++) {
+    cumCW += colWidths[ci];
+    const pct = (cumCW / totalCW) * 100;
+    const handle = document.createElement('div');
+    handle.className = 'divider-handle dh-col';
+    handle.style.left = `calc(8px + (100% - 16px) * ${cumCW / totalCW})`;
+    handle.addEventListener('mousedown', makeDragCol(ci));
+    wrap.appendChild(handle);
+  }
+
+  // Add row divider handles
+  const totalRH = rowHeights.reduce((a, b) => a + b, 0);
+  let cumRH = 0;
+  for (let ri = 0; ri < nRows - 1; ri++) {
+    cumRH += rowHeights[ri];
+    const handle = document.createElement('div');
+    handle.className = 'divider-handle dh-row';
+    handle.style.top = `calc(8px + (100% - 16px) * ${cumRH / totalRH})`;
+    handle.addEventListener('mousedown', makeDragRow(ri));
+    wrap.appendChild(handle);
+  }
 
   el.innerHTML = '';
   for (let r = 0; r < nRows; r++) {
@@ -324,6 +417,73 @@ function updateInfo() {
   const p = params();
   $('infoComps').textContent = countCompartments();
   $('infoDims').innerHTML = `${p.width} &times; ${p.length} &times; ${p.depth}`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   Draggable Divider Handles
+   ══════════════════════════════════════════════════════════ */
+const MIN_FRAC = 0.15; // minimum fraction of total for any col/row
+
+function makeDragCol(ci) {
+  return function(e) {
+    e.preventDefault(); e.stopPropagation();
+    const wrap = $('gridWrap');
+    const rect = wrap.getBoundingClientRect();
+    const pad = 8;
+    const innerW = rect.width - 2 * pad;
+    const totalCW = colWidths.reduce((a, b) => a + b, 0);
+    const handle = e.currentTarget;
+    handle.classList.add('active');
+
+    function onMove(ev) {
+      const x = (ev.clientX - rect.left - pad) / innerW;
+      let leftSum = 0;
+      for (let i = 0; i < ci; i++) leftSum += colWidths[i] / totalCW;
+      let rightEnd = leftSum + (colWidths[ci] + colWidths[ci + 1]) / totalCW;
+      const newLeft = Math.max(leftSum + MIN_FRAC / nCols, Math.min(rightEnd - MIN_FRAC / nCols, x));
+      colWidths[ci] = (newLeft - leftSum) * totalCW;
+      colWidths[ci + 1] = (rightEnd - newLeft) * totalCW;
+      renderGrid(); updatePreview();
+    }
+    function onUp() {
+      handle.classList.remove('active');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+}
+
+function makeDragRow(ri) {
+  return function(e) {
+    e.preventDefault(); e.stopPropagation();
+    const wrap = $('gridWrap');
+    const rect = wrap.getBoundingClientRect();
+    const pad = 8;
+    const innerH = rect.height - 2 * pad;
+    const totalRH = rowHeights.reduce((a, b) => a + b, 0);
+    const handle = e.currentTarget;
+    handle.classList.add('active');
+
+    function onMove(ev) {
+      const y = (ev.clientY - rect.top - pad) / innerH;
+      let topSum = 0;
+      for (let i = 0; i < ri; i++) topSum += rowHeights[i] / totalRH;
+      let botEnd = topSum + (rowHeights[ri] + rowHeights[ri + 1]) / totalRH;
+      const newTop = Math.max(topSum + MIN_FRAC / nRows, Math.min(botEnd - MIN_FRAC / nRows, y));
+      rowHeights[ri] = (newTop - topSum) * totalRH;
+      rowHeights[ri + 1] = (botEnd - newTop) * totalRH;
+      renderGrid(); updatePreview();
+    }
+    function onUp() {
+      handle.classList.remove('active');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -411,9 +571,24 @@ function gridLinePositions(p) {
 /* ── Build 3D geometry ── */
 function buildInsertGeometry() {
   const p = params();
-  const { width, length, depth, wall, radius } = p;
+  // Apply gap: shrink outer dimensions
+  const width  = p.width  - 2 * p.gap;
+  const length = p.length - 2 * p.gap;
+  const depth  = p.depth;
+  const wall   = p.wall;
+  const radius = p.radius;
   const innerR = Math.max(radius - wall, 0.01);
-  const { colX, rowY, innerW, innerL } = gridLinePositions(p);
+  const innerW = width - 2 * wall;
+  const innerL = length - 2 * wall;
+
+  // Recompute grid lines with gap-adjusted dims
+  const totalCW = colWidths.reduce((a, b) => a + b, 0) || 1;
+  const totalRH = rowHeights.reduce((a, b) => a + b, 0) || 1;
+  const colX = [wall];
+  for (const cw of colWidths) colX.push(colX[colX.length - 1] + (cw / totalCW) * innerW);
+  const rowY = [wall];
+  for (const rh of rowHeights) rowY.push(rowY[rowY.length - 1] + (rh / totalRH) * innerL);
+
   const geos = [];
   const curveSegs = 12;
 
@@ -459,8 +634,32 @@ function buildInsertGeometry() {
     }
   }
 
+  // 5. Stacking geometry: visual preview of lip/groove
+  if (p.stacking) {
+    const halfW = wall / 2;
+    const stepInset = halfW + p.gap;
+    const stepH = p.stackH;
+    const crStep = Math.max(radius - stepInset, 0.01);
+
+    // Bottom step ring (raised outer perimeter at base)
+    const stepRing = makeRoundedRectShape(0, 0, width, length, radius);
+    stepRing.holes.push(makeRoundedRectPath(stepInset, stepInset,
+      width - 2 * stepInset, length - 2 * stepInset, crStep));
+    geos.push(new THREE.ExtrudeGeometry(stepRing, { depth: stepH, bevelEnabled: false, curveSegments: curveSegs }));
+
+    // Top lip: thin inset ring at top edge
+    const lipH = wall;
+    const lipShape = makeRoundedRectShape(wall * 0.3, wall * 0.3, width - wall * 0.6, length - wall * 0.6, Math.max(radius - wall * 0.3, 0.01));
+    lipShape.holes.push(makeRoundedRectPath(wall, wall, innerW, innerL, innerR));
+    const lipGeo = new THREE.ExtrudeGeometry(lipShape, { depth: lipH, bevelEnabled: false, curveSegments: curveSegs });
+    lipGeo.translate(0, 0, depth - lipH);
+    geos.push(lipGeo);
+  }
+
   // Merge all, center at origin
-  const merged = BufferGeometryUtils.mergeGeometries(geos.map(g => g.toNonIndexed()));
+  const toMerge = geos.map(g => g.index ? g.toNonIndexed() : g);
+  const merged = BufferGeometryUtils.mergeGeometries(toMerge);
+  if (!merged) { const fb = new THREE.BoxGeometry(width, length, depth); return fb; }
   merged.translate(-width / 2, -length / 2, 0);
   merged.computeVertexNormals();
   return merged;
@@ -518,15 +717,26 @@ function downloadSTL() {
    ══════════════════════════════════════════════════════════ */
 function downloadSCAD() {
   const p = params();
-  const { colX, rowY } = gridLinePositions(p);
+  // Apply gap to dims for SCAD
+  const sw = p.width - 2 * p.gap;
+  const sl = p.length - 2 * p.gap;
+  const innerW = sw - 2 * p.wall;
+  const innerL = sl - 2 * p.wall;
+  const totalCW = colWidths.reduce((a, b) => a + b, 0) || 1;
+  const totalRH = rowHeights.reduce((a, b) => a + b, 0) || 1;
+  const colX = [p.wall];
+  for (const cw of colWidths) colX.push(colX[colX.length - 1] + (cw / totalCW) * innerW);
+  const rowY = [p.wall];
+  for (const rh of rowHeights) rowY.push(rowY[rowY.length - 1] + (rh / totalRH) * innerL);
+
   const lines = [
     '// ===== Auto-generated storage insert drawer =====',
-    `// Outer dims: ${p.width} x ${p.length} x ${p.depth} mm, wall: ${p.wall} mm`,
+    `// Outer dims: ${sw} x ${sl} x ${p.depth} mm, wall: ${p.wall} mm, gap: ${p.gap} mm`,
     `// Grid: ${nRows} rows x ${nCols} cols`,
     '',
     '/* [Dimensions] */',
-    `outer_w = ${p.width};`,
-    `outer_l = ${p.length};`,
+    `outer_w = ${sw};`,
+    `outer_l = ${sl};`,
     `outer_d = ${p.depth};`,
     `wall    = ${p.wall};`,
     `cr      = ${p.radius};`,
@@ -594,7 +804,54 @@ function downloadSCAD() {
 
   lines.push('}');
   lines.push('');
-  lines.push('insert();');
+
+  if (p.stacking) {
+    const halfW = p.wall / 2;
+    const stepInset = +(halfW + p.gap).toFixed(4);
+    const rH = p.wall, rV = 2 * p.wall;
+    const N = 8;
+    lines.push('// Bowl-style stacking with rounded transitions');
+    lines.push('difference() {');
+    lines.push('    insert();');
+    lines.push('');
+    lines.push(`    // Top bowl scoop: h_r=${rH}, v_r=${rV} (${N} segments)`);
+    for (let i = 0; i < N; i++) {
+      const t0 = Math.PI / 2 * i / N;
+      const t1 = Math.PI / 2 * (i + 1) / N;
+      const in0 = +(rH * Math.sin(t0)).toFixed(4), z0 = +(p.depth - rV * (1 - Math.cos(t0))).toFixed(4);
+      const in1 = +(rH * Math.sin(t1)).toFixed(4), z1 = +(p.depth - rV * (1 - Math.cos(t1))).toFixed(4);
+      lines.push('    hull() {');
+      lines.push(`        translate([${in0}, ${in0}, ${z0}])`);
+      lines.push(`            rrect(outer_w - ${+(2*in0).toFixed(4)}, outer_l - ${+(2*in0).toFixed(4)}, 0.01, max(cr - ${in0}, 0.01));`);
+      lines.push(`        translate([${in1}, ${in1}, ${z1}])`);
+      lines.push(`            rrect(outer_w - ${+(2*in1).toFixed(4)}, outer_l - ${+(2*in1).toFixed(4)}, 0.01, max(cr - ${in1}, 0.01));`);
+      lines.push('    }');
+    }
+    lines.push('');
+    lines.push('    // Bottom step with convex round');
+    lines.push('    difference() {');
+    lines.push(`        cube([outer_w, outer_l, ${+(p.stackH + stepInset).toFixed(4)}]);`);
+    lines.push('        union() {');
+    lines.push(`            translate([${stepInset}, ${stepInset}, -0.01])`);
+    lines.push(`                rrect(outer_w - ${+(2*stepInset).toFixed(4)}, outer_l - ${+(2*stepInset).toFixed(4)}, ${+(p.stackH + 0.02).toFixed(4)}, max(cr - ${stepInset}, 0.01));`);
+    for (let i = 0; i < N; i++) {
+      const a0 = Math.PI / 2 * i / N;
+      const a1 = Math.PI / 2 * (i + 1) / N;
+      const in0 = +(stepInset * Math.cos(a0)).toFixed(4), z0 = +(p.stackH + stepInset * Math.sin(a0)).toFixed(4);
+      const in1 = +(stepInset * Math.cos(a1)).toFixed(4), z1 = +(p.stackH + stepInset * Math.sin(a1)).toFixed(4);
+      lines.push('            hull() {');
+      lines.push(`                translate([${in0}, ${in0}, ${z0}])`);
+      lines.push(`                    rrect(outer_w - ${+(2*in0).toFixed(4)}, outer_l - ${+(2*in0).toFixed(4)}, 0.01, max(cr - ${in0}, 0.01));`);
+      lines.push(`                translate([${in1}, ${in1}, ${z1}])`);
+      lines.push(`                    rrect(outer_w - ${+(2*in1).toFixed(4)}, outer_l - ${+(2*in1).toFixed(4)}, 0.01, max(cr - ${in1}, 0.01));`);
+      lines.push('            }');
+    }
+    lines.push('        }');
+    lines.push('    }');
+    lines.push('}');
+  } else {
+    lines.push('insert();');
+  }
   lines.push('');
 
   const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
@@ -630,8 +887,35 @@ function resize() {
 window.addEventListener('resize', resize);
 
 // Dimension inputs → live update
-['fWidth', 'fLength', 'fDepth', 'fWall', 'fRadius'].forEach(id => {
+['fWidth', 'fLength', 'fDepth', 'fWall', 'fRadius', 'fGap', 'fStackH'].forEach(id => {
   $(id).addEventListener('input', () => { updatePreview(); renderGrid(); });
+});
+
+// Stacking toggle
+$('fStack').addEventListener('change', () => {
+  $('stackHeightRow').style.display = $('fStack').checked ? 'flex' : 'none';
+  updatePreview();
+});
+
+// Unit toggle
+document.querySelectorAll('.unit-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const newUnit = btn.dataset.unit;
+    if (newUnit === currentUnit) return;
+    const factor = newUnit === 'in' ? 1 / IN_TO_MM : IN_TO_MM;
+    // Convert all dimension fields
+    ['fWidth','fLength','fDepth','fWall','fRadius','fGap','fStackH'].forEach(id => {
+      const el = $(id);
+      const raw = parseFloat(el.value) || 0;
+      const converted = +(raw * factor).toPrecision(6);
+      el.value = converted;
+      el.step = newUnit === 'in' ? 0.01 : (id === 'fWall' || id === 'fRadius' || id === 'fGap' || id === 'fStackH' ? 0.1 : 1);
+    });
+    currentUnit = newUnit;
+    document.querySelectorAll('.unit-btn').forEach(b => b.classList.toggle('active', b.dataset.unit === newUnit));
+    document.querySelectorAll('.unit-label').forEach(s => s.textContent = newUnit);
+    updatePreview(); renderGrid();
+  });
 });
 
 // Grid size → reset
