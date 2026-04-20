@@ -183,6 +183,23 @@
 <main>
   <aside id="panel">
     <div>
+      <div class="panel-label open" data-target="secLayout">Layout Editor</div>
+      <div class="panel-section" id="secLayout">
+        <div class="field-row"><label>Rows</label><input type="number" id="fRows" value="2" min="1" max="20" step="1"></div>
+        <div class="field-row"><label>Columns</label><input type="number" id="fCols" value="3" min="1" max="20" step="1"></div>
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:8px">Click cells to select. Shift+click to multi-select. Merge combines selected into one compartment.</p>
+        <div id="gridWrap">
+          <div id="gridEditor"></div>
+        </div>
+        <div class="grid-actions">
+          <button class="btn btn-outline btn-sm" id="btnMerge">Merge</button>
+          <button class="btn btn-outline btn-sm" id="btnSplit">Split</button>
+          <button class="btn btn-outline btn-sm" id="btnReset">Reset</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
       <div class="panel-label open" data-target="secDims">Dimensions</div>
       <div class="panel-section" id="secDims">
         <div class="field-row" style="margin-bottom:12px"><label>Units</label>
@@ -215,29 +232,6 @@
         <div class="toggle-row" id="testStackRow" style="display:none">
           <label>Test Stack</label>
           <div class="toggle"><input type="checkbox" id="fTestStack"><label for="fTestStack" class="toggle-track"></label></div>
-        </div>
-      </div>
-    </div>
-
-    <div>
-      <div class="panel-label open" data-target="secGrid">Grid</div>
-      <div class="panel-section" id="secGrid">
-        <div class="field-row"><label>Rows</label><input type="number" id="fRows" value="2" min="1" max="20" step="1"></div>
-        <div class="field-row"><label>Columns</label><input type="number" id="fCols" value="3" min="1" max="20" step="1"></div>
-      </div>
-    </div>
-
-    <div>
-      <div class="panel-label open" data-target="secLayout">Layout Editor</div>
-      <div class="panel-section" id="secLayout">
-        <p style="font-size:.7rem;color:var(--muted);margin-bottom:8px">Click cells to select. Shift+click to multi-select. Merge combines selected into one compartment.</p>
-        <div id="gridWrap">
-          <div id="gridEditor"></div>
-        </div>
-        <div class="grid-actions">
-          <button class="btn btn-outline btn-sm" id="btnMerge">Merge</button>
-          <button class="btn btn-outline btn-sm" id="btnSplit">Split</button>
-          <button class="btn btn-outline btn-sm" id="btnReset">Reset</button>
         </div>
       </div>
     </div>
@@ -467,6 +461,11 @@ function renderGrid() {
 
       el.appendChild(cell);
     }
+  }
+  // Refresh collapsible max-height so grid isn't clipped
+  const secLayout = $('secLayout');
+  if (secLayout && !secLayout.classList.contains('collapsed')) {
+    secLayout.style.maxHeight = secLayout.scrollHeight + 200 + 'px';
   }
   updateInfo();
 }
