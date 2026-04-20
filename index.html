@@ -50,7 +50,14 @@
     .panel-label {
       font-family: var(--mono); font-size: .68rem; font-weight: 600;
       color: var(--accent); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px;
+      cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none;
     }
+    .panel-label::before {
+      content: '▸'; display: inline-block; transition: transform .15s; font-size: .7rem;
+    }
+    .panel-label.open::before { transform: rotate(90deg); }
+    .panel-section { overflow: hidden; transition: max-height .25s ease, opacity .2s ease; }
+    .panel-section.collapsed { max-height: 0 !important; opacity: 0; margin: 0; padding: 0; }
     .field-row {
       display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
     }
@@ -128,6 +135,27 @@
     #viewport { flex: 1; position: relative; background: var(--bg); }
     #viewport canvas { width: 100% !important; height: 100% !important; display: block; }
 
+    /* ── Stack test right panel ── */
+    #stackTestPanel {
+      position: absolute; top: 0; right: 0; width: 240px; height: 100%;
+      background: var(--surface); border-left: 1px solid var(--border);
+      padding: 16px; display: none; flex-direction: column; gap: 16px; z-index: 10;
+    }
+    #stackTestPanel.active { display: flex; }
+    #stackTestPanel .panel-label { cursor: default; }
+    #stackTestPanel .panel-label::before { display: none; }
+    .slider-row { display: flex; flex-direction: column; gap: 6px; }
+    .slider-row label { font-size: .78rem; color: var(--muted); }
+    .slider-row input[type="range"] {
+      -webkit-appearance: none; width: 100%; height: 4px; border-radius: 2px;
+      background: var(--border); outline: none;
+    }
+    .slider-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+      background: var(--accent); cursor: pointer;
+    }
+    .slider-val { font-family: var(--mono); font-size: .72rem; color: var(--text-hi); text-align: right; }
+
     /* ── Viewport HUD ── */
     .vp-hud {
       position: absolute; bottom: 12px; left: 12px;
@@ -155,47 +183,62 @@
 <main>
   <aside id="panel">
     <div>
-      <div class="panel-label">Dimensions</div>
-      <div class="field-row" style="margin-bottom:12px"><label>Units</label>
-        <div class="unit-btns">
-          <button class="unit-btn active" data-unit="mm">mm</button>
-          <button class="unit-btn" data-unit="in">in</button>
+      <div class="panel-label open" data-target="secDims">Dimensions</div>
+      <div class="panel-section" id="secDims">
+        <div class="field-row" style="margin-bottom:12px"><label>Units</label>
+          <div class="unit-btns">
+            <button class="unit-btn active" data-unit="mm">mm</button>
+            <button class="unit-btn" data-unit="in">in</button>
+          </div>
+        </div>
+        <div class="field-row"><label>Width</label><input type="number" id="fWidth" value="300" min="10" step="1"><span class="unit unit-label">mm</span></div>
+        <div class="field-row"><label>Length</label><input type="number" id="fLength" value="400" min="10" step="1"><span class="unit unit-label">mm</span></div>
+        <div class="field-row"><label>Depth</label><input type="number" id="fDepth" value="50" min="5" step="1"><span class="unit unit-label">mm</span></div>
+        <div class="field-row"><label>Wall</label><input type="number" id="fWall" value="2" min="0.4" step="0.1"><span class="unit unit-label">mm</span></div>
+        <div class="field-row"><label>Floor</label><input type="number" id="fFloor" value="2" min="0.4" step="0.1"><span class="unit unit-label">mm</span></div>
+        <div class="field-row"><label>Radius</label><input type="number" id="fRadius" value="3" min="0" step="0.5"><span class="unit unit-label">mm</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-label open" data-target="secPrint">Print Settings</div>
+      <div class="panel-section" id="secPrint">
+        <div class="field-row"><label>Gap</label><input type="number" id="fGap" value="0" min="0" step="0.1"><span class="unit unit-label">mm</span></div>
+        <p style="font-size:.65rem;color:var(--muted);margin:-4px 0 8px 80px">Clearance per side for print tolerance</p>
+        <div class="field-row"><label>Layer H</label><input type="number" id="fLayerH" value="0.2" min="0.04" step="0.04" max="1"><span class="unit unit-label">mm</span></div>
+        <div class="field-row"><label>Nozzle</label><input type="number" id="fNozzle" value="0.6" min="0.1" step="0.1" max="2"><span class="unit unit-label">mm</span></div>
+        <div class="toggle-row">
+          <label>Stackable</label>
+          <div class="toggle"><input type="checkbox" id="fStack"><label for="fStack" class="toggle-track"></label></div>
+        </div>
+        <div class="field-row" id="stackHeightRow" style="display:none"><label>Stack Lip</label><input type="number" id="fStackH" value="2" min="0.5" step="0.5"><span class="unit unit-label">mm</span></div>
+        <div class="toggle-row" id="testStackRow" style="display:none">
+          <label>Test Stack</label>
+          <div class="toggle"><input type="checkbox" id="fTestStack"><label for="fTestStack" class="toggle-track"></label></div>
         </div>
       </div>
-      <div class="field-row"><label>Width</label><input type="number" id="fWidth" value="300" min="10" step="1"><span class="unit unit-label">mm</span></div>
-      <div class="field-row"><label>Length</label><input type="number" id="fLength" value="400" min="10" step="1"><span class="unit unit-label">mm</span></div>
-      <div class="field-row"><label>Depth</label><input type="number" id="fDepth" value="50" min="5" step="1"><span class="unit unit-label">mm</span></div>
-      <div class="field-row"><label>Wall</label><input type="number" id="fWall" value="2" min="0.4" step="0.1"><span class="unit unit-label">mm</span></div>
-      <div class="field-row"><label>Radius</label><input type="number" id="fRadius" value="3" min="0" step="0.5"><span class="unit unit-label">mm</span></div>
     </div>
 
     <div>
-      <div class="panel-label">Print Settings</div>
-      <div class="field-row"><label>Gap</label><input type="number" id="fGap" value="0" min="0" step="0.1"><span class="unit unit-label">mm</span></div>
-      <p style="font-size:.65rem;color:var(--muted);margin:-4px 0 8px 80px">Clearance per side for print tolerance</p>
-      <div class="toggle-row">
-        <label>Stackable</label>
-        <div class="toggle"><input type="checkbox" id="fStack"><label for="fStack" class="toggle-track"></label></div>
+      <div class="panel-label open" data-target="secGrid">Grid</div>
+      <div class="panel-section" id="secGrid">
+        <div class="field-row"><label>Rows</label><input type="number" id="fRows" value="2" min="1" max="20" step="1"></div>
+        <div class="field-row"><label>Columns</label><input type="number" id="fCols" value="3" min="1" max="20" step="1"></div>
       </div>
-      <div class="field-row" id="stackHeightRow" style="display:none"><label>Stack Lip</label><input type="number" id="fStackH" value="2" min="0.5" step="0.5"><span class="unit unit-label">mm</span></div>
     </div>
 
     <div>
-      <div class="panel-label">Grid</div>
-      <div class="field-row"><label>Rows</label><input type="number" id="fRows" value="2" min="1" max="20" step="1"></div>
-      <div class="field-row"><label>Columns</label><input type="number" id="fCols" value="3" min="1" max="20" step="1"></div>
-    </div>
-
-    <div>
-      <div class="panel-label">Layout Editor</div>
-      <p style="font-size:.7rem;color:var(--muted);margin-bottom:8px">Click cells to select. Shift+click to multi-select. Merge combines selected into one compartment.</p>
-      <div id="gridWrap">
-        <div id="gridEditor"></div>
-      </div>
-      <div class="grid-actions">
-        <button class="btn btn-outline btn-sm" id="btnMerge">Merge</button>
-        <button class="btn btn-outline btn-sm" id="btnSplit">Split</button>
-        <button class="btn btn-outline btn-sm" id="btnReset">Reset</button>
+      <div class="panel-label open" data-target="secLayout">Layout Editor</div>
+      <div class="panel-section" id="secLayout">
+        <p style="font-size:.7rem;color:var(--muted);margin-bottom:8px">Click cells to select. Shift+click to multi-select. Merge combines selected into one compartment.</p>
+        <div id="gridWrap">
+          <div id="gridEditor"></div>
+        </div>
+        <div class="grid-actions">
+          <button class="btn btn-outline btn-sm" id="btnMerge">Merge</button>
+          <button class="btn btn-outline btn-sm" id="btnSplit">Split</button>
+          <button class="btn btn-outline btn-sm" id="btnReset">Reset</button>
+        </div>
       </div>
     </div>
 
@@ -207,6 +250,18 @@
   <div id="viewport">
     <canvas id="preview"></canvas>
     <div class="vp-hud">scroll to zoom &middot; drag to orbit &middot; right-drag to pan</div>
+    <div id="stackTestPanel">
+      <div class="panel-label">Stack Test</div>
+      <div class="slider-row">
+        <label>Distance <span class="slider-val" id="stackDistVal">0 mm</span></label>
+        <input type="range" id="stackDistSlider" min="0" max="50" step="0.5" value="0">
+      </div>
+      <div class="slider-row">
+        <label>Cross-section <span class="slider-val" id="clipPctVal">75%</span></label>
+        <input type="range" id="clipPctSlider" min="5" max="95" step="1" value="75">
+      </div>
+      <p style="font-size:.65rem;color:var(--muted);line-height:1.5">Cross-section view of two stacked inserts. Adjust distance to test mating fit.</p>
+    </div>
     <div style="position:absolute;bottom:12px;right:12px;font-family:var(--mono);font-size:.6rem;color:var(--muted);pointer-events:none;">&copy; 2026 Justin Bak</div>
   </div>
 </main>
@@ -249,10 +304,13 @@ function params() {
     length:     Math.max(10, toMM(parseFloat($('fLength').value) || 400)),
     depth:      Math.max(2,  toMM(parseFloat($('fDepth').value) || 50)),
     wall:       Math.max(0.4, toMM(parseFloat($('fWall').value) || 2)),
+    floor:      Math.max(0.4, toMM(parseFloat($('fFloor').value) || 2)),
     radius:     Math.max(0,   toMM(parseFloat($('fRadius').value) || 3)),
     gap:        gap,
     stacking:   $('fStack').checked,
     stackH:     Math.max(0.5, toMM(parseFloat($('fStackH').value) || 2)),
+    layerH:     Math.max(0.04, toMM(parseFloat($('fLayerH').value) || 0.2)),
+    nozzle:     Math.max(0.1, toMM(parseFloat($('fNozzle').value) || 0.6)),
   };
 }
 
@@ -490,7 +548,7 @@ function makeDragRow(ri) {
    Three.js Scene
    ══════════════════════════════════════════════════════════ */
 const canvas = $('preview');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, stencil: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setClearColor(0x0a0c10);
 
@@ -519,6 +577,14 @@ scene.add(groundGrid);
 
 let insertMesh = null;
 let edgeMesh = null;
+let stackTopMesh = null;
+let stackTopEdge = null;
+let capBottom = null;
+let capTop = null;
+let clipPlane = null;
+let testStackMode = false;
+let savedCamPos = null;
+let savedCamTarget = null;
 
 /* ── Rounded rect helpers ── */
 function makeRoundedRectShape(x, y, w, h, r) {
@@ -571,17 +637,19 @@ function gridLinePositions(p) {
 /* ── Build 3D geometry ── */
 function buildInsertGeometry() {
   const p = params();
-  // Apply gap: shrink outer dimensions
   const width  = p.width  - 2 * p.gap;
   const length = p.length - 2 * p.gap;
   const depth  = p.depth;
   const wall   = p.wall;
+  const floor  = p.floor;
   const radius = p.radius;
   const innerR = Math.max(radius - wall, 0.01);
   const innerW = width - 2 * wall;
   const innerL = length - 2 * wall;
+  const layerH = p.layerH;
+  const curveSegs = 12;
 
-  // Recompute grid lines with gap-adjusted dims
+  // Grid lines
   const totalCW = colWidths.reduce((a, b) => a + b, 0) || 1;
   const totalRH = rowHeights.reduce((a, b) => a + b, 0) || 1;
   const colX = [wall];
@@ -590,21 +658,100 @@ function buildInsertGeometry() {
   for (const rh of rowHeights) rowY.push(rowY[rowY.length - 1] + (rh / totalRH) * innerL);
 
   const geos = [];
-  const curveSegs = 12;
-
-  // Flip grid rows so editor top (row 0) maps to high Y (far side in 3D view)
   const fGrid = grid.slice().reverse();
 
-  // 1. Bottom plate
-  const bottomShape = makeRoundedRectShape(0, 0, width, length, radius);
-  geos.push(new THREE.ExtrudeGeometry(bottomShape, { depth: wall, bevelEnabled: false, curveSegments: curveSegs }));
+  const stacking = p.stacking;
+  const stepH = stacking ? p.stackH : 0;
 
-  // 2. Outer walls (shell ring)
-  const wallShape = makeRoundedRectShape(0, 0, width, length, radius);
-  wallShape.holes.push(makeRoundedRectPath(wall, wall, innerW, innerL, innerR));
-  geos.push(new THREE.ExtrudeGeometry(wallShape, { depth: depth, bevelEnabled: false, curveSegments: curveSegs }));
+  // Helper: extrude a ring (outer rect minus inner rect hole) at a given z
+  function addRing(oIns, iIns, z, h) {
+    const oW = width - 2 * oIns, oL = length - 2 * oIns;
+    const iW2 = width - 2 * iIns, iL2 = length - 2 * iIns;
+    if (oW <= 0 || oL <= 0 || iW2 <= 0 || iL2 <= 0 || oIns >= iIns) return;
+    const s = makeRoundedRectShape(oIns, oIns, oW, oL, Math.max(radius - oIns, 0.01));
+    s.holes.push(makeRoundedRectPath(iIns, iIns, iW2, iL2, Math.max(radius - iIns, 0.01)));
+    const g = new THREE.ExtrudeGeometry(s, { depth: Math.max(h, 0.01), bevelEnabled: false, curveSegments: curveSegs });
+    if (z > 0) g.translate(0, 0, z);
+    geos.push(g);
+  }
 
-  // 3. Horizontal dividers (between rows where cell IDs differ)
+  // Helper: extrude a solid rect at a given z
+  function addSolid(ins, z, h) {
+    const w2 = width - 2 * ins, l2 = length - 2 * ins;
+    if (w2 <= 0 || l2 <= 0) return;
+    const s = makeRoundedRectShape(ins, ins, w2, l2, Math.max(radius - ins, 0.01));
+    const g = new THREE.ExtrudeGeometry(s, { depth: Math.max(h, 0.01), bevelEnabled: false, curveSegments: curveSegs });
+    if (z > 0) g.translate(0, 0, z);
+    geos.push(g);
+  }
+
+  if (stacking) {
+    // ── Bottom foot ──
+    const chamH = Math.min(wall, stepH);
+    const chamN = Math.max(1, Math.round(chamH / layerH));
+    const chamDz = chamH / chamN;
+
+    // Floor plate at inner wall position (z=0 to floor)
+    addSolid(wall, 0, floor);
+
+    // Inner corner chamfer: 45° triangle fill where floor meets inner wall
+    // Sits on top of floor (z=floor), tapers from wall+floor down to wall at z=floor+floor
+    const floorChamN = Math.max(1, Math.round(floor / layerH));
+    const floorChamDz = floor / floorChamN;
+    for (let i = 0; i < floorChamN; i++) {
+      const t = i / floorChamN;
+      const extra = floor * (1 - t); // floor at bottom → 0 at top
+      if (extra < 0.01) break;
+      addRing(wall, wall + extra, floor + i * floorChamDz, floorChamDz);
+    }
+
+    // Outer wall 45° chamfer: outer goes from wall (z=0) to 0 (z=chamH), inner stays at wall
+    for (let i = 0; i < chamN; i++) {
+      const tBot = i / chamN;
+      const oIns = wall * (1 - tBot);
+      addRing(oIns, wall, i * chamDz, chamDz);
+    }
+
+    // Straight foot walls above chamfer (z=chamH to stepH)
+    if (stepH > chamH) {
+      addRing(0, wall, chamH, stepH - chamH);
+    }
+
+    // ── Main body walls (z=stepH to depth) ──
+    addRing(0, wall, stepH, depth - stepH);
+
+    // ── Top lip: straight walls + chamfered inner edge at top ──
+    // Outer wall stays at full perimeter (oIns=0).
+    // Inner hole widens going up: wall → 0 (wall tapers to a point = |\ shape)
+    const lipChamH = Math.min(wall, stepH);
+    const lipStraightH = stepH - lipChamH;
+
+    // Straight portion (z=depth to depth+lipStraightH) — full wall thickness
+    if (lipStraightH > 0) {
+      addRing(0, wall, depth, lipStraightH);
+    }
+
+    // 45° chamfer portion (z=depth+lipStraightH to z=depth+stepH)
+    // Outer stays at 0, inner goes from wall (bottom) → 0 (top)
+    const lipN = Math.max(1, Math.round(lipChamH / layerH));
+    const lipDz = lipChamH / lipN;
+    const lipZ0 = depth + lipStraightH;
+
+    for (let i = 0; i < lipN; i++) {
+      const t = i / lipN;
+      const iIns = wall * (1 - t); // wall at bottom → 0 at top
+      addRing(0, iIns, lipZ0 + i * lipDz, lipDz);
+    }
+  } else {
+    // Non-stacking: simple box
+    addSolid(0, 0, floor);       // bottom plate
+    addRing(0, wall, 0, depth);  // walls
+  }
+
+  // ── Dividers ──
+  const divZ0 = stacking ? stepH : 0;
+  const divH = depth - divZ0;
+
   for (let r = 1; r < nRows; r++) {
     let c = 0;
     while (c < nCols) {
@@ -612,14 +759,13 @@ function buildInsertGeometry() {
         const cStart = c;
         while (c < nCols && fGrid[r - 1][c] !== fGrid[r][c]) c++;
         const dw = colX[c] - colX[cStart];
-        const g = new THREE.BoxGeometry(dw, wall, depth);
-        g.translate(colX[cStart] + dw / 2, rowY[r], depth / 2);
+        const g = new THREE.BoxGeometry(dw, wall, divH);
+        g.translate(colX[cStart] + dw / 2, rowY[r], divZ0 + divH / 2);
         geos.push(g);
       } else c++;
     }
   }
 
-  // 4. Vertical dividers (between columns where cell IDs differ)
   for (let c = 1; c < nCols; c++) {
     let r = 0;
     while (r < nRows) {
@@ -627,42 +773,28 @@ function buildInsertGeometry() {
         const rStart = r;
         while (r < nRows && fGrid[r][c - 1] !== fGrid[r][c]) r++;
         const dh = rowY[r] - rowY[rStart];
-        const g = new THREE.BoxGeometry(wall, dh, depth);
-        g.translate(colX[c], rowY[rStart] + dh / 2, depth / 2);
+        const g = new THREE.BoxGeometry(wall, dh, divH);
+        g.translate(colX[c], rowY[rStart] + dh / 2, divZ0 + divH / 2);
         geos.push(g);
       } else r++;
     }
   }
 
-  // 5. Stacking geometry: visual preview of lip/groove
-  if (p.stacking) {
-    const halfW = wall / 2;
-    const stepInset = halfW + p.gap;
-    const stepH = p.stackH;
-    const crStep = Math.max(radius - stepInset, 0.01);
-
-    // Bottom step ring (raised outer perimeter at base)
-    const stepRing = makeRoundedRectShape(0, 0, width, length, radius);
-    stepRing.holes.push(makeRoundedRectPath(stepInset, stepInset,
-      width - 2 * stepInset, length - 2 * stepInset, crStep));
-    geos.push(new THREE.ExtrudeGeometry(stepRing, { depth: stepH, bevelEnabled: false, curveSegments: curveSegs }));
-
-    // Top lip: thin inset ring at top edge
-    const lipH = wall;
-    const lipShape = makeRoundedRectShape(wall * 0.3, wall * 0.3, width - wall * 0.6, length - wall * 0.6, Math.max(radius - wall * 0.3, 0.01));
-    lipShape.holes.push(makeRoundedRectPath(wall, wall, innerW, innerL, innerR));
-    const lipGeo = new THREE.ExtrudeGeometry(lipShape, { depth: lipH, bevelEnabled: false, curveSegments: curveSegs });
-    lipGeo.translate(0, 0, depth - lipH);
-    geos.push(lipGeo);
-  }
-
   // Merge all, center at origin
   const toMerge = geos.map(g => g.index ? g.toNonIndexed() : g);
   const merged = BufferGeometryUtils.mergeGeometries(toMerge);
-  if (!merged) { const fb = new THREE.BoxGeometry(width, length, depth); return fb; }
+  if (!merged) return new THREE.BoxGeometry(width, length, depth);
   merged.translate(-width / 2, -length / 2, 0);
   merged.computeVertexNormals();
   return merged;
+}
+
+/* ── Clear stack test meshes ── */
+function clearStackTest() {
+  [stackTopMesh, stackTopEdge, capBottom, capTop].forEach(m => {
+    if (m) { scene.remove(m); m.geometry.dispose(); m.material.dispose(); }
+  });
+  stackTopMesh = stackTopEdge = capBottom = capTop = null;
 }
 
 /* ── Update 3D preview ── */
@@ -677,22 +809,81 @@ function updatePreview() {
     edgeMesh.geometry.dispose();
     edgeMesh.material.dispose();
   }
+  clearStackTest();
 
   const geo = buildInsertGeometry();
 
-  const mat = new THREE.MeshPhongMaterial({
-    color: 0xb0b8c8,
-    specular: 0x222222,
-    shininess: 25,
-  });
+  // Clipping for cross-section in test stack mode
+  const matOpts = { color: 0xb0b8c8, specular: 0x222222, shininess: 25 };
+  if (testStackMode) {
+    const p = params();
+    const len = p.length - 2 * p.gap;
+    const pct = parseFloat($('clipPctSlider').value) / 100;
+    // pct maps from front (+len/2) toward back (-len/2)
+    const clipY = len / 2 - pct * len;
+    clipPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -clipY);
+    matOpts.clippingPlanes = [clipPlane];
+    matOpts.clipShadows = true;
+    matOpts.side = THREE.FrontSide;
+    renderer.localClippingEnabled = true;
+  } else {
+    renderer.localClippingEnabled = false;
+  }
+
+  const mat = new THREE.MeshPhongMaterial(matOpts);
   insertMesh = new THREE.Mesh(geo, mat);
   scene.add(insertMesh);
+
+  // Bottom tray back-face cap (red) — only visible at clip boundary
+  if (testStackMode) {
+    const capMat = new THREE.MeshBasicMaterial({
+      color: 0xcc3333, side: THREE.BackSide,
+      clippingPlanes: [clipPlane],
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4,
+    });
+    capBottom = new THREE.Mesh(geo, capMat);
+    scene.add(capBottom);
+  }
 
   // Edge wireframe for visual clarity
   const edgeGeo = new THREE.EdgesGeometry(geo, 15);
   const edgeMat = new THREE.LineBasicMaterial({ color: 0x34d399, transparent: true, opacity: 0.15 });
+  if (testStackMode) edgeMat.clippingPlanes = [clipPlane];
   edgeMesh = new THREE.LineSegments(edgeGeo, edgeMat);
   scene.add(edgeMesh);
+
+  // If test stack mode, add the second (top) tray + back-face caps
+  if (testStackMode) {
+    const topGeo = geo.clone();
+    const p = params();
+    const dist = parseFloat($('stackDistSlider').value) || 0;
+    const stackOffset = p.depth + dist;
+
+    const topMat = new THREE.MeshPhongMaterial({
+      color: 0x8899bb, specular: 0x222222, shininess: 25,
+      clippingPlanes: [clipPlane], clipShadows: true, side: THREE.FrontSide,
+      transparent: true, opacity: 0.85,
+    });
+    stackTopMesh = new THREE.Mesh(topGeo, topMat);
+    stackTopMesh.position.set(0, 0, stackOffset);
+    scene.add(stackTopMesh);
+
+    // Top tray back-face cap (blue)
+    const capTopMat = new THREE.MeshBasicMaterial({
+      color: 0x3355cc, side: THREE.BackSide,
+      clippingPlanes: [clipPlane],
+      polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -4,
+    });
+    capTop = new THREE.Mesh(topGeo, capTopMat);
+    capTop.position.set(0, 0, stackOffset);
+    scene.add(capTop);
+
+    const topEdgeGeo = new THREE.EdgesGeometry(topGeo, 15);
+    const topEdgeMat = new THREE.LineBasicMaterial({ color: 0x111111, clippingPlanes: [clipPlane] });
+    stackTopEdge = new THREE.LineSegments(topEdgeGeo, topEdgeMat);
+    stackTopEdge.position.set(0, 0, stackOffset);
+    scene.add(stackTopEdge);
+  }
 
   updateInfo();
 }
@@ -731,7 +922,7 @@ function downloadSCAD() {
 
   const lines = [
     '// ===== Auto-generated storage insert drawer =====',
-    `// Outer dims: ${sw} x ${sl} x ${p.depth} mm, wall: ${p.wall} mm, gap: ${p.gap} mm`,
+    `// Outer dims: ${sw} x ${sl} x ${p.depth} mm, wall: ${p.wall} mm, floor: ${p.floor} mm, gap: ${p.gap} mm`,
     `// Grid: ${nRows} rows x ${nCols} cols`,
     '',
     '/* [Dimensions] */',
@@ -739,6 +930,7 @@ function downloadSCAD() {
     `outer_l = ${sl};`,
     `outer_d = ${p.depth};`,
     `wall    = ${p.wall};`,
+    `floor_t = ${p.floor};`,
     `cr      = ${p.radius};`,
     '',
     '$fn = 40;',
@@ -755,7 +947,7 @@ function downloadSCAD() {
     'module insert() {',
     '    difference() {',
     '        rrect(outer_w, outer_l, outer_d, cr);',
-    '        translate([wall, wall, wall])',
+    '        translate([wall, wall, floor_t])',
     '            rrect(outer_w - 2*wall, outer_l - 2*wall, outer_d, max(cr - wall, 0.01));',
     '    }',
     '',
@@ -828,6 +1020,59 @@ function downloadSCAD() {
       lines.push('    }');
     }
     lines.push('');
+
+    // Divider top scoops: flush inner walls with mating tray
+    const scoopR = p.stackH;
+    lines.push(`    // Divider top scoops (flush with mating tray, r=${scoopR})`);
+    for (const [xs, xe, yc] of hSegs) {
+      const segW = +(xe - xs).toFixed(4);
+      lines.push(`    // H-divider scoop at y=${yc.toFixed(4)}`);
+      lines.push(`    translate([${xs.toFixed(4)}, ${+(yc - p.wall/2).toFixed(4)}, ${+(p.depth - p.stackH).toFixed(4)}])`);
+      lines.push(`        difference() {`);
+      lines.push(`            cube([${segW}, ${p.wall}, ${p.stackH + 0.01}]);`);
+      for (let i = 0; i < N; i++) {
+        const a0 = Math.PI / 2 * i / N;
+        const a1 = Math.PI / 2 * (i + 1) / N;
+        const dz0 = +(scoopR * (1 - Math.cos(a0))).toFixed(4);
+        const dx0 = +(scoopR * Math.sin(a0)).toFixed(4);
+        const dz1 = +(scoopR * (1 - Math.cos(a1))).toFixed(4);
+        const dx1 = +(scoopR * Math.sin(a1)).toFixed(4);
+        lines.push(`            hull() {`);
+        lines.push(`                translate([-0.01, -0.01, ${dz0}]) cube([${dx0 + 0.01}, ${+(p.wall + 0.02).toFixed(4)}, 0.01]);`);
+        lines.push(`                translate([-0.01, -0.01, ${dz1}]) cube([${dx1 + 0.01}, ${+(p.wall + 0.02).toFixed(4)}, 0.01]);`);
+        lines.push(`            }`);
+        lines.push(`            hull() {`);
+        lines.push(`                translate([${+(segW - dx0).toFixed(4)}, -0.01, ${dz0}]) cube([${dx0 + 0.01}, ${+(p.wall + 0.02).toFixed(4)}, 0.01]);`);
+        lines.push(`                translate([${+(segW - dx1).toFixed(4)}, -0.01, ${dz1}]) cube([${dx1 + 0.01}, ${+(p.wall + 0.02).toFixed(4)}, 0.01]);`);
+        lines.push(`            }`);
+      }
+      lines.push(`        }`);
+    }
+    for (const [xc, ys, ye] of vSegs) {
+      const segL = +(ye - ys).toFixed(4);
+      lines.push(`    // V-divider scoop at x=${xc.toFixed(4)}`);
+      lines.push(`    translate([${+(xc - p.wall/2).toFixed(4)}, ${ys.toFixed(4)}, ${+(p.depth - p.stackH).toFixed(4)}])`);
+      lines.push(`        difference() {`);
+      lines.push(`            cube([${p.wall}, ${segL}, ${p.stackH + 0.01}]);`);
+      for (let i = 0; i < N; i++) {
+        const a0 = Math.PI / 2 * i / N;
+        const a1 = Math.PI / 2 * (i + 1) / N;
+        const dz0 = +(scoopR * (1 - Math.cos(a0))).toFixed(4);
+        const dy0 = +(scoopR * Math.sin(a0)).toFixed(4);
+        const dz1 = +(scoopR * (1 - Math.cos(a1))).toFixed(4);
+        const dy1 = +(scoopR * Math.sin(a1)).toFixed(4);
+        lines.push(`            hull() {`);
+        lines.push(`                translate([-0.01, -0.01, ${dz0}]) cube([${+(p.wall + 0.02).toFixed(4)}, ${dy0 + 0.01}, 0.01]);`);
+        lines.push(`                translate([-0.01, -0.01, ${dz1}]) cube([${+(p.wall + 0.02).toFixed(4)}, ${dy1 + 0.01}, 0.01]);`);
+        lines.push(`            }`);
+        lines.push(`            hull() {`);
+        lines.push(`                translate([-0.01, ${+(segL - dy0).toFixed(4)}, ${dz0}]) cube([${+(p.wall + 0.02).toFixed(4)}, ${dy0 + 0.01}, 0.01]);`);
+        lines.push(`                translate([-0.01, ${+(segL - dy1).toFixed(4)}, ${dz1}]) cube([${+(p.wall + 0.02).toFixed(4)}, ${dy1 + 0.01}, 0.01]);`);
+        lines.push(`            }`);
+      }
+      lines.push(`        }`);
+    }
+    lines.push('');
     lines.push('    // Bottom step with convex round');
     lines.push('    difference() {');
     lines.push(`        cube([outer_w, outer_l, ${+(p.stackH + stepInset).toFixed(4)}]);`);
@@ -863,12 +1108,80 @@ function downloadSCAD() {
 }
 
 /* ══════════════════════════════════════════════════════════
+   3D Compass
+   ══════════════════════════════════════════════════════════ */
+const compassScene = new THREE.Scene();
+const compassCamera = new THREE.OrthographicCamera(-1.2, 1.2, 1.2, -1.2, 0.1, 10);
+compassCamera.position.set(0, 0, 3);
+compassCamera.lookAt(0, 0, 0);
+
+(function buildCompass() {
+  const len = 0.6;
+  const colors = { x: 0xff5555, y: 0x55ff55, z: 0x5588ff };
+  const dirs = [
+    { dir: new THREE.Vector3(len, 0, 0), label: 'X', color: colors.x },
+    { dir: new THREE.Vector3(0, len, 0), label: 'Y', color: colors.y },
+    { dir: new THREE.Vector3(0, 0, len), label: 'Z', color: colors.z },
+  ];
+  dirs.forEach(({ dir, label, color }) => {
+    // Axis line
+    const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), dir]);
+    compassScene.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color, linewidth: 2 })));
+    // Cone tip
+    const cone = new THREE.ConeGeometry(0.06, 0.18, 8);
+    const coneMesh = new THREE.Mesh(cone, new THREE.MeshBasicMaterial({ color }));
+    coneMesh.position.copy(dir);
+    if (dir.x > 0) coneMesh.rotation.z = -Math.PI / 2;
+    else if (dir.y > 0) { /* default up */ }
+    else if (dir.z > 0) coneMesh.rotation.x = Math.PI / 2;
+    compassScene.add(coneMesh);
+    // Label via canvas sprite
+    const c = document.createElement('canvas'); c.width = 64; c.height = 64;
+    const ctx = c.getContext('2d');
+    ctx.font = 'bold 48px sans-serif';
+    ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(label, 32, 32);
+    const tex = new THREE.CanvasTexture(c);
+    const spriteMat = new THREE.SpriteMaterial({ map: tex, depthTest: false });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.scale.set(0.3, 0.3, 1);
+    sprite.position.copy(dir.clone().multiplyScalar(1.45));
+    compassScene.add(sprite);
+  });
+})();
+
+const compassGroup = compassScene.children.slice();
+
+function renderCompass() {
+  // Sync compass to main camera orientation
+  const q = camera.quaternion.clone().invert();
+  compassScene.quaternion.copy(q);
+
+  const size = renderer.getSize(new THREE.Vector2());
+  const s = 100; // compass viewport size
+  const margin = 10;
+  // Disable clipping so compass isn't affected by test stack clip planes
+  const wasClipping = renderer.localClippingEnabled;
+  renderer.localClippingEnabled = false;
+  renderer.clearDepth();
+  renderer.setScissorTest(true);
+  renderer.setScissor(size.x - s - margin, size.y - s - margin, s, s);
+  renderer.setViewport(size.x - s - margin, size.y - s - margin, s, s);
+  renderer.render(compassScene, compassCamera);
+  renderer.setScissorTest(false);
+  renderer.setViewport(0, 0, size.x, size.y);
+  renderer.localClippingEnabled = wasClipping;
+}
+
+/* ══════════════════════════════════════════════════════════
    Animation Loop
    ══════════════════════════════════════════════════════════ */
 function animate() {
   requestAnimationFrame(animate);
   controls.update();
   renderer.render(scene, camera);
+  renderCompass();
 }
 
 function resize() {
@@ -886,15 +1199,88 @@ function resize() {
    ══════════════════════════════════════════════════════════ */
 window.addEventListener('resize', resize);
 
+// Collapsible panel sections
+document.querySelectorAll('.panel-label[data-target]').forEach(lbl => {
+  const sec = $(lbl.dataset.target);
+  // Set initial max-height for open sections
+  sec.style.maxHeight = sec.scrollHeight + 'px';
+  lbl.addEventListener('click', () => {
+    lbl.classList.toggle('open');
+    if (lbl.classList.contains('open')) {
+      sec.classList.remove('collapsed');
+      sec.style.maxHeight = sec.scrollHeight + 'px';
+    } else {
+      sec.style.maxHeight = sec.scrollHeight + 'px';
+      requestAnimationFrame(() => { sec.classList.add('collapsed'); sec.style.maxHeight = '0px'; });
+    }
+  });
+});
+
 // Dimension inputs → live update
-['fWidth', 'fLength', 'fDepth', 'fWall', 'fRadius', 'fGap', 'fStackH'].forEach(id => {
+['fWidth', 'fLength', 'fDepth', 'fWall', 'fFloor', 'fRadius', 'fGap', 'fStackH', 'fLayerH', 'fNozzle'].forEach(id => {
   $(id).addEventListener('input', () => { updatePreview(); renderGrid(); });
 });
 
 // Stacking toggle
 $('fStack').addEventListener('change', () => {
-  $('stackHeightRow').style.display = $('fStack').checked ? 'flex' : 'none';
+  const on = $('fStack').checked;
+  $('stackHeightRow').style.display = on ? 'flex' : 'none';
+  $('testStackRow').style.display = on ? 'flex' : 'none';
+  if (!on) {
+    $('fTestStack').checked = false;
+    exitTestStack();
+  }
+  // Update collapsible max-height to accommodate newly visible rows
+  const sec = $('secPrint');
+  if (sec && !sec.classList.contains('collapsed')) {
+    sec.style.maxHeight = sec.scrollHeight + 200 + 'px';
+  }
   updatePreview();
+});
+
+// Test Stack toggle
+function enterTestStack() {
+  testStackMode = true;
+  $('stackTestPanel').classList.add('active');
+  // Save camera and shift to cross-section side view
+  savedCamPos = camera.position.clone();
+  savedCamTarget = controls.target.clone();
+  const p = params();
+  // Top tray (right-side up) at z=depth has its top at z = 2*depth + stepH
+  const stackTop = 2 * p.depth + p.stackH;
+  // Camera at -Y, rotated 180 CCW so Z points up in view
+  camera.position.set(0, -(p.length || 200), stackTop * 0.5);
+  controls.target.set(0, 0, stackTop * 0.5);
+  camera.up.set(0, 0, 1);
+  controls.update();
+  updatePreview();
+}
+function exitTestStack() {
+  testStackMode = false;
+  clearStackTest();
+  $('stackTestPanel').classList.remove('active');
+  renderer.localClippingEnabled = false;
+  if (savedCamPos) {
+    camera.position.copy(savedCamPos);
+    controls.target.copy(savedCamTarget);
+    camera.up.set(0, 0, 1);
+    controls.update();
+    savedCamPos = null; savedCamTarget = null;
+  }
+  updatePreview();
+  resize();
+}
+$('fTestStack').addEventListener('change', () => {
+  if ($('fTestStack').checked) enterTestStack(); else exitTestStack();
+});
+$('stackDistSlider').addEventListener('input', () => {
+  const v = $('stackDistSlider').value;
+  $('stackDistVal').textContent = v + ' ' + currentUnit;
+  if (testStackMode) updatePreview();
+});
+$('clipPctSlider').addEventListener('input', () => {
+  $('clipPctVal').textContent = $('clipPctSlider').value + '%';
+  if (testStackMode) updatePreview();
 });
 
 // Unit toggle
@@ -904,12 +1290,12 @@ document.querySelectorAll('.unit-btn').forEach(btn => {
     if (newUnit === currentUnit) return;
     const factor = newUnit === 'in' ? 1 / IN_TO_MM : IN_TO_MM;
     // Convert all dimension fields
-    ['fWidth','fLength','fDepth','fWall','fRadius','fGap','fStackH'].forEach(id => {
+    ['fWidth','fLength','fDepth','fWall','fFloor','fRadius','fGap','fStackH','fLayerH','fNozzle'].forEach(id => {
       const el = $(id);
       const raw = parseFloat(el.value) || 0;
       const converted = +(raw * factor).toPrecision(6);
       el.value = converted;
-      el.step = newUnit === 'in' ? 0.01 : (id === 'fWall' || id === 'fRadius' || id === 'fGap' || id === 'fStackH' ? 0.1 : 1);
+      el.step = newUnit === 'in' ? 0.01 : (id === 'fWall' || id === 'fFloor' || id === 'fRadius' || id === 'fGap' || id === 'fStackH' || id === 'fLayerH' || id === 'fNozzle' ? 0.1 : 1);
     });
     currentUnit = newUnit;
     document.querySelectorAll('.unit-btn').forEach(b => b.classList.toggle('active', b.dataset.unit === newUnit));
@@ -940,6 +1326,7 @@ $('btnScad').addEventListener('click', downloadSCAD);
 /* ══════════════════════════════════════════════════════════
    Init
    ══════════════════════════════════════════════════════════ */
+
 initGrid(2, 3);
 renderGrid();
 resize();
