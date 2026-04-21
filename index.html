@@ -806,16 +806,40 @@ function buildInsertGeometry() {
   const divZ0 = stacking ? stepH : 0;
   const divH = depth - divZ0;
 
+  // Helper: build a horizontal divider slab with rounded short-ends
+  // Extends wall/2 past each endpoint so the semicircle center lands exactly
+  // on the junction centerline — matching the center of any meeting vertical slab.
+  function addHorizDiv(x0, x1, yCtr, z0, h) {
+    const ex0 = x0 - wall / 2;
+    const ex1 = x1 + wall / 2;
+    const dw = ex1 - ex0;
+    if (dw <= 0) return;
+    const s = makeRoundedRectShape(ex0, yCtr - wall / 2, dw, wall, wall / 2);
+    const g = new THREE.ExtrudeGeometry(s, { depth: Math.max(h, 0.01), bevelEnabled: false, curveSegments: curveSegs });
+    g.translate(0, 0, z0);
+    geos.push(g);
+  }
+
+  // Helper: build a vertical divider slab with rounded short-ends
+  // Same extension logic — semicircle center lands on junction centerline.
+  function addVertDiv(xCtr, y0, y1, z0, h) {
+    const ey0 = y0 - wall / 2;
+    const ey1 = y1 + wall / 2;
+    const dl = ey1 - ey0;
+    if (dl <= 0) return;
+    const s = makeRoundedRectShape(xCtr - wall / 2, ey0, wall, dl, wall / 2);
+    const g = new THREE.ExtrudeGeometry(s, { depth: Math.max(h, 0.01), bevelEnabled: false, curveSegments: curveSegs });
+    g.translate(0, 0, z0);
+    geos.push(g);
+  }
+
   for (let r = 1; r < nRows; r++) {
     let c = 0;
     while (c < nCols) {
       if (fGrid[r - 1][c] !== fGrid[r][c]) {
         const cStart = c;
         while (c < nCols && fGrid[r - 1][c] !== fGrid[r][c]) c++;
-        const dw = colX[c] - colX[cStart];
-        const g = new THREE.BoxGeometry(dw, wall, divH);
-        g.translate(colX[cStart] + dw / 2, rowY[r], divZ0 + divH / 2);
-        geos.push(g);
+        addHorizDiv(colX[cStart], colX[c], rowY[r], divZ0, divH);
       } else c++;
     }
   }
@@ -826,10 +850,7 @@ function buildInsertGeometry() {
       if (fGrid[r][c - 1] !== fGrid[r][c]) {
         const rStart = r;
         while (r < nRows && fGrid[r][c - 1] !== fGrid[r][c]) r++;
-        const dh = rowY[r] - rowY[rStart];
-        const g = new THREE.BoxGeometry(wall, dh, divH);
-        g.translate(colX[c], rowY[rStart] + dh / 2, divZ0 + divH / 2);
-        geos.push(g);
+        addVertDiv(colX[c], rowY[rStart], rowY[r], divZ0, divH);
       } else r++;
     }
   }
@@ -839,23 +860,90 @@ function buildInsertGeometry() {
     const blockGap = p.gap;
     const blockH = Math.max(0.01, Math.min(p.blockH, depth - floor));
     const halfW = wall / 2;
+    const seen = new Set();
+
+    function addBlock(r0, r1, c0, c1, id) {
+      let leftIsDivider = false;
+      let rightIsDivider = false;
+      let downIsDivider = false;
+      let upIsDivider = false;
+
+      if (c0 > 0) {
+        for (let r = r0; r <= r1; r++) {
+          if (fGrid[r][c0 - 1] !== id) { leftIsDivider = true; break; }
+        }
+      }
+      if (c1 < nCols - 1) {
+        for (let r = r0; r <= r1; r++) {
+          if (fGrid[r][c1 + 1] !== id) { rightIsDivider = true; break; }
+        }
+      }
+      if (r0 > 0) {
+        for (let c = c0; c <= c1; c++) {
+          if (fGrid[r0 - 1][c] !== id) { downIsDivider = true; break; }
+        }
+      }
+      if (r1 < nRows - 1) {
+        for (let c = c0; c <= c1; c++) {
+          if (fGrid[r1 + 1][c] !== id) { upIsDivider = true; break; }
+        }
+      }
+
+      const x0 = colX[c0] + (leftIsDivider ? halfW : 0) + blockGap;
+      const x1 = colX[c1 + 1] - (rightIsDivider ? halfW : 0) - blockGap;
+      const y0 = rowY[r0] + (downIsDivider ? halfW : 0) + blockGap;
+      const y1 = rowY[r1 + 1] - (upIsDivider ? halfW : 0) - blockGap;
+      const bw = x1 - x0;
+      const bl = y1 - y0;
+      if (bw <= 0.2 || bl <= 0.2) return;
+      const blockR = Math.max(0.01, Math.min(Math.max(innerR - blockGap, 0.01), bw / 2, bl / 2));
+      const s = makeRoundedRectShape(x0, y0, bw, bl, blockR);
+      const g = new THREE.ExtrudeGeometry(s, {
+        depth: Math.max(blockH, 0.01),
+        bevelEnabled: false,
+        curveSegments: curveSegs,
+      });
+      g.translate(0, 0, -blockH);
+      geos.push(g);
+    }
+
+    // Prefer one block per merged rectangular compartment to avoid stepped seams.
+    for (const [idStr, cells] of Object.entries(cellInfo)) {
+      const id = Number(idStr);
+      if (!cells || cells.size === 0) continue;
+      const rc = [...cells].map(s => s.split(',').map(Number));
+      let rMin = Infinity, rMax = -Infinity, cMin = Infinity, cMax = -Infinity;
+      for (const [r, c] of rc) {
+        if (r < rMin) rMin = r;
+        if (r > rMax) rMax = r;
+        if (c < cMin) cMin = c;
+        if (c > cMax) cMax = c;
+      }
+
+      let isRect = true;
+      for (let r = rMin; r <= rMax && isRect; r++) {
+        for (let c = cMin; c <= cMax; c++) {
+          if (fGrid[r][c] !== id) { isRect = false; break; }
+        }
+      }
+
+      if (isRect) {
+        addBlock(rMin, rMax, cMin, cMax, id);
+        for (let r = rMin; r <= rMax; r++) {
+          for (let c = cMin; c <= cMax; c++) {
+            seen.add(`${r},${c}`);
+          }
+        }
+      }
+    }
+
+    // Fallback for non-rectangular compartments: keep per-cell blocks.
     for (let r = 0; r < nRows; r++) {
       for (let c = 0; c < nCols; c++) {
-        const leftIsDivider = c > 0 && fGrid[r][c - 1] !== fGrid[r][c];
-        const rightIsDivider = c < nCols - 1 && fGrid[r][c + 1] !== fGrid[r][c];
-        const downIsDivider = r > 0 && fGrid[r - 1][c] !== fGrid[r][c];
-        const upIsDivider = r < nRows - 1 && fGrid[r + 1][c] !== fGrid[r][c];
-
-        const x0 = colX[c] + (leftIsDivider ? halfW : 0) + blockGap;
-        const x1 = colX[c + 1] - (rightIsDivider ? halfW : 0) - blockGap;
-        const y0 = rowY[r] + (downIsDivider ? halfW : 0) + blockGap;
-        const y1 = rowY[r + 1] - (upIsDivider ? halfW : 0) - blockGap;
-        const bw = x1 - x0;
-        const bl = y1 - y0;
-        if (bw <= 0.2 || bl <= 0.2) continue;
-        const g = new THREE.BoxGeometry(bw, bl, blockH);
-        g.translate((x0 + x1) / 2, (y0 + y1) / 2, -blockH / 2);
-        geos.push(g);
+        const key = `${r},${c}`;
+        if (seen.has(key)) continue;
+        const id = fGrid[r][c];
+        addBlock(r, r, c, c, id);
       }
     }
   }
