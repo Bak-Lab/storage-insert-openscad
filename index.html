@@ -708,8 +708,11 @@ function buildInsertGeometry() {
   const totalRH = rowHeights.reduce((a, b) => a + b, 0) || 1;
   const colX = [wall];
   for (const cw of colWidths) colX.push(colX[colX.length - 1] + (cw / totalCW) * innerW);
-  const rowY = [wall];
-  for (const rh of rowHeights) rowY.push(rowY[rowY.length - 1] + (rh / totalRH) * innerL);
+  // rowY is descending: row 0 (top of editor) maps to far Y (wall+innerL),
+  // row nRows (bottom of editor) maps to near Y (wall). Camera sits at negative Y
+  // so high Y = far from camera = top of the 3D view = top of the layout editor.
+  const rowY = [wall + innerL];
+  for (const rh of rowHeights) rowY.push(rowY[rowY.length - 1] - (rh / totalRH) * innerL);
 
   const geos = [];
   const fGrid = grid;
@@ -822,9 +825,10 @@ function buildInsertGeometry() {
 
   // Helper: build a vertical divider slab with rounded short-ends
   // Same extension logic — semicircle center lands on junction centerline.
-  function addVertDiv(xCtr, y0, y1, z0, h) {
-    const ey0 = y0 - wall / 2;
-    const ey1 = y1 + wall / 2;
+  // Uses min/max so it works regardless of whether yA < yB or yA > yB.
+  function addVertDiv(xCtr, yA, yB, z0, h) {
+    const ey0 = Math.min(yA, yB) - wall / 2;
+    const ey1 = Math.max(yA, yB) + wall / 2;
     const dl = ey1 - ey0;
     if (dl <= 0) return;
     const s = makeRoundedRectShape(xCtr - wall / 2, ey0, wall, dl, wall / 2);
@@ -891,8 +895,10 @@ function buildInsertGeometry() {
 
       const x0 = colX[c0] + (leftIsDivider ? halfW : 0) + blockGap;
       const x1 = colX[c1 + 1] - (rightIsDivider ? halfW : 0) - blockGap;
-      const y0 = rowY[r0] + (downIsDivider ? halfW : 0) + blockGap;
-      const y1 = rowY[r1 + 1] - (upIsDivider ? halfW : 0) - blockGap;
+      // rowY is descending: rowY[r0] > rowY[r1+1]. "down" (r0-1 side) is at high Y,
+      // "up" (r1+1 side) is at low Y — so inset directions are swapped vs ascending.
+      const y0 = rowY[r1 + 1] + (upIsDivider ? halfW : 0) + blockGap;
+      const y1 = rowY[r0] - (downIsDivider ? halfW : 0) - blockGap;
       const bw = x1 - x0;
       const bl = y1 - y0;
       if (bw <= 0.2 || bl <= 0.2) return;
