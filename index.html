@@ -220,15 +220,19 @@
     <div>
       <div class="panel-label open" data-target="secPrint">Print Settings</div>
       <div class="panel-section" id="secPrint">
-        <div class="field-row"><label>Gap</label><input type="number" id="fGap" value="0" min="0" step="0.1"><span class="unit unit-label">mm</span></div>
+        <div class="field-row"><label>Gap</label><input type="number" id="fGap" value="0.5" min="0" step="0.1"><span class="unit unit-label">mm</span></div>
         <p style="font-size:.65rem;color:var(--muted);margin:-4px 0 8px 80px">Clearance per side for print tolerance</p>
         <div class="field-row"><label>Layer H</label><input type="number" id="fLayerH" value="0.2" min="0.04" step="0.04" max="1"><span class="unit unit-label">mm</span></div>
         <div class="field-row"><label>Nozzle</label><input type="number" id="fNozzle" value="0.6" min="0.1" step="0.1" max="2"><span class="unit unit-label">mm</span></div>
         <div class="toggle-row">
+          <label>Stack Thickness</label>
+          <div class="toggle"><input type="checkbox" id="fCellBlocks"><label for="fCellBlocks" class="toggle-track"></label></div>
+        </div>
+        <div class="field-row" id="blockHeightRow" style="display:none"><label>Thickness</label><input type="number" id="fBlockH" value="2" min="0.5" step="0.5"><span class="unit unit-label">mm</span></div>
+        <div class="toggle-row">
           <label>Stackable</label>
           <div class="toggle"><input type="checkbox" id="fStack"><label for="fStack" class="toggle-track"></label></div>
         </div>
-        <div class="field-row" id="stackHeightRow" style="display:none"><label>Stack Lip</label><input type="number" id="fStackH" value="2" min="0.5" step="0.5"><span class="unit unit-label">mm</span></div>
         <div class="toggle-row" id="testStackRow" style="display:none">
           <label>Test Stack</label>
           <div class="toggle"><input type="checkbox" id="fTestStack"><label for="fTestStack" class="toggle-track"></label></div>
@@ -248,7 +252,7 @@
       <div class="panel-label">Stack Test</div>
       <div class="slider-row">
         <label>Distance <span class="slider-val" id="stackDistVal">0 mm</span></label>
-        <input type="range" id="stackDistSlider" min="0" max="50" step="0.5" value="0">
+        <input type="range" id="stackDistSlider" min="0" max="2" step="0.5" value="0">
       </div>
       <div class="slider-row">
         <label>Cross-section <span class="slider-val" id="clipPctVal">75%</span></label>
@@ -293,16 +297,19 @@ function toMM(v) { return currentUnit === 'in' ? v * IN_TO_MM : v; }
 
 function params() {
   const gap = Math.max(0, toMM(parseFloat($('fGap').value) || 0));
+  const wall = Math.max(0.4, toMM(parseFloat($('fWall').value) || 2));
   return {
     width:      Math.max(10, toMM(parseFloat($('fWidth').value) || 300)),
     length:     Math.max(10, toMM(parseFloat($('fLength').value) || 400)),
     depth:      Math.max(2,  toMM(parseFloat($('fDepth').value) || 50)),
-    wall:       Math.max(0.4, toMM(parseFloat($('fWall').value) || 2)),
+    wall:       wall,
     floor:      Math.max(0.4, toMM(parseFloat($('fFloor').value) || 2)),
     radius:     Math.max(0,   toMM(parseFloat($('fRadius').value) || 3)),
     gap:        gap,
     stacking:   $('fStack').checked,
-    stackH:     Math.max(0.5, toMM(parseFloat($('fStackH').value) || 2)),
+    stackH:     Math.max(0.5, wall),
+    cellBlocks: $('fCellBlocks').checked,
+    blockH:     Math.max(0.5, toMM(parseFloat($('fBlockH').value) || 8)),
     layerH:     Math.max(0.04, toMM(parseFloat($('fLayerH').value) || 0.2)),
     nozzle:     Math.max(0.1, toMM(parseFloat($('fNozzle').value) || 0.6)),
   };
@@ -553,7 +560,8 @@ renderer.setClearColor(0x0a0c10);
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 10000);
-camera.position.set(350, -400, 300);
+camera.up.set(0, 0, 1);
+camera.position.set(-350, -400, 300);
 
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
@@ -657,7 +665,7 @@ function buildInsertGeometry() {
   for (const rh of rowHeights) rowY.push(rowY[rowY.length - 1] + (rh / totalRH) * innerL);
 
   const geos = [];
-  const fGrid = grid.slice().reverse();
+  const fGrid = grid;
 
   const stacking = p.stacking;
   const stepH = stacking ? p.stackH : 0;
@@ -776,6 +784,32 @@ function buildInsertGeometry() {
         g.translate(colX[c], rowY[rStart] + dh / 2, divZ0 + divH / 2);
         geos.push(g);
       } else r++;
+    }
+  }
+
+  // Optional fit blocks on underside, with independent print clearance.
+  if (p.cellBlocks) {
+    const blockGap = p.gap;
+    const blockH = Math.max(0.01, Math.min(p.blockH, depth - floor));
+    const halfW = wall / 2;
+    for (let r = 0; r < nRows; r++) {
+      for (let c = 0; c < nCols; c++) {
+        const leftIsDivider = c > 0 && fGrid[r][c - 1] !== fGrid[r][c];
+        const rightIsDivider = c < nCols - 1 && fGrid[r][c + 1] !== fGrid[r][c];
+        const downIsDivider = r > 0 && fGrid[r - 1][c] !== fGrid[r][c];
+        const upIsDivider = r < nRows - 1 && fGrid[r + 1][c] !== fGrid[r][c];
+
+        const x0 = colX[c] + (leftIsDivider ? halfW : 0) + blockGap;
+        const x1 = colX[c + 1] - (rightIsDivider ? halfW : 0) - blockGap;
+        const y0 = rowY[r] + (downIsDivider ? halfW : 0) + blockGap;
+        const y1 = rowY[r + 1] - (upIsDivider ? halfW : 0) - blockGap;
+        const bw = x1 - x0;
+        const bl = y1 - y0;
+        if (bw <= 0.2 || bl <= 0.2) continue;
+        const g = new THREE.BoxGeometry(bw, bl, blockH);
+        g.translate((x0 + x1) / 2, (y0 + y1) / 2, -blockH / 2);
+        geos.push(g);
+      }
     }
   }
 
@@ -1216,20 +1250,30 @@ document.querySelectorAll('.panel-label[data-target]').forEach(lbl => {
 });
 
 // Dimension inputs → live update
-['fWidth', 'fLength', 'fDepth', 'fWall', 'fFloor', 'fRadius', 'fGap', 'fStackH', 'fLayerH', 'fNozzle'].forEach(id => {
+['fWidth', 'fLength', 'fDepth', 'fWall', 'fFloor', 'fRadius', 'fGap', 'fBlockH', 'fLayerH', 'fNozzle'].forEach(id => {
   $(id).addEventListener('input', () => { updatePreview(); renderGrid(); });
 });
 
 // Stacking toggle
 $('fStack').addEventListener('change', () => {
   const on = $('fStack').checked;
-  $('stackHeightRow').style.display = on ? 'flex' : 'none';
   $('testStackRow').style.display = on ? 'flex' : 'none';
   if (!on) {
     $('fTestStack').checked = false;
     exitTestStack();
   }
   // Update collapsible max-height to accommodate newly visible rows
+  const sec = $('secPrint');
+  if (sec && !sec.classList.contains('collapsed')) {
+    sec.style.maxHeight = sec.scrollHeight + 200 + 'px';
+  }
+  updatePreview();
+});
+
+// Cell blocks toggle
+$('fCellBlocks').addEventListener('change', () => {
+  const on = $('fCellBlocks').checked;
+  $('blockHeightRow').style.display = on ? 'flex' : 'none';
   const sec = $('secPrint');
   if (sec && !sec.classList.contains('collapsed')) {
     sec.style.maxHeight = sec.scrollHeight + 200 + 'px';
@@ -1289,12 +1333,12 @@ document.querySelectorAll('.unit-btn').forEach(btn => {
     if (newUnit === currentUnit) return;
     const factor = newUnit === 'in' ? 1 / IN_TO_MM : IN_TO_MM;
     // Convert all dimension fields
-    ['fWidth','fLength','fDepth','fWall','fFloor','fRadius','fGap','fStackH','fLayerH','fNozzle'].forEach(id => {
+    ['fWidth','fLength','fDepth','fWall','fFloor','fRadius','fGap','fBlockH','fLayerH','fNozzle'].forEach(id => {
       const el = $(id);
       const raw = parseFloat(el.value) || 0;
       const converted = +(raw * factor).toPrecision(6);
       el.value = converted;
-      el.step = newUnit === 'in' ? 0.01 : (id === 'fWall' || id === 'fFloor' || id === 'fRadius' || id === 'fGap' || id === 'fStackH' || id === 'fLayerH' || id === 'fNozzle' ? 0.1 : 1);
+      el.step = newUnit === 'in' ? 0.01 : (id === 'fWall' || id === 'fFloor' || id === 'fRadius' || id === 'fGap' || id === 'fBlockH' || id === 'fLayerH' || id === 'fNozzle' ? 0.1 : 1);
     });
     currentUnit = newUnit;
     document.querySelectorAll('.unit-btn').forEach(b => b.classList.toggle('active', b.dataset.unit === newUnit));
