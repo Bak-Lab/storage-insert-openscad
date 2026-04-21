@@ -38,6 +38,28 @@
     .btn-outline:hover { border-color: var(--accent); color: var(--text); }
     .btn-sm { padding: 5px 10px; font-size: .7rem; }
 
+    /* ── Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.55);
+      display: none; align-items: center; justify-content: center; z-index: 100;
+      padding: 16px;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal {
+      width: min(680px, 100%); max-height: 80vh; overflow: auto;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 18px 48px rgba(0,0,0,.45);
+      padding: 16px;
+    }
+    .modal h2 {
+      font-family: var(--mono); font-size: .95rem; color: var(--text-hi); margin-bottom: 10px;
+    }
+    .modal p, .modal li {
+      font-size: .78rem; color: var(--text); line-height: 1.6;
+    }
+    .modal ul { margin: 8px 0 10px 18px; }
+    .modal .close-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+
     /* ── Main layout ── */
     main { display: flex; height: calc(100vh - 48px); }
 
@@ -174,11 +196,30 @@
 <header>
   <div class="logo"><b>Bak</b>Lab / storage-insert-generator</div>
   <div class="header-actions">
+    <button class="btn btn-outline btn-sm" id="btnAbout">About This</button>
     <a class="btn btn-outline btn-sm" href="https://github.com/Bak-Lab/storage-insert-openscad" target="_blank" rel="noopener">GitHub</a>
     <button class="btn btn-outline btn-sm" id="btnScad">Download .scad</button>
     <button class="btn btn-accent btn-sm" id="btnStl">Download STL</button>
   </div>
 </header>
+
+<div class="modal-overlay" id="aboutModal" aria-hidden="true">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="aboutTitle">
+    <h2 id="aboutTitle">About This Generator</h2>
+    <p>This tool generates customizable storage inserts for drawers, bins, and organizers. You can design cell layouts, preview them in 3D, test stack fit, and export for printing.</p>
+    <ul>
+      <li>Interactive grid editor with merge/split compartments and draggable dividers.</li>
+      <li>Live 3D preview with cross-section stack test mode.</li>
+      <li>Control over dimensions, wall/floor thickness, corner radius, and print settings.</li>
+      <li>Optional underside stack-thickness features with clearance controlled by Print Gap.</li>
+      <li>Exports to STL and OpenSCAD for printing workflows.</li>
+    </ul>
+    <p>Hover over any parameter label or field for a quick explanation.</p>
+    <div class="close-row">
+      <button class="btn btn-outline btn-sm" id="btnAboutClose">Close</button>
+    </div>
+  </div>
+</div>
 
 <main>
   <aside id="panel">
@@ -224,15 +265,21 @@
         <p style="font-size:.65rem;color:var(--muted);margin:-4px 0 8px 80px">Clearance per side for print tolerance</p>
         <div class="field-row"><label>Layer H</label><input type="number" id="fLayerH" value="0.2" min="0.04" step="0.04" max="1"><span class="unit unit-label">mm</span></div>
         <div class="field-row"><label>Nozzle</label><input type="number" id="fNozzle" value="0.6" min="0.1" step="0.1" max="2"><span class="unit unit-label">mm</span></div>
-        <div class="toggle-row">
-          <label>Stack Thickness</label>
-          <div class="toggle"><input type="checkbox" id="fCellBlocks"><label for="fCellBlocks" class="toggle-track"></label></div>
-        </div>
-        <div class="field-row" id="blockHeightRow" style="display:none"><label>Thickness</label><input type="number" id="fBlockH" value="2" min="0.5" step="0.5"><span class="unit unit-label">mm</span></div>
+      </div>
+    </div>
+
+    <div>
+      <div class="panel-label open" data-target="secMisc">Misc</div>
+      <div class="panel-section" id="secMisc">
         <div class="toggle-row">
           <label>Stackable</label>
           <div class="toggle"><input type="checkbox" id="fStack"><label for="fStack" class="toggle-track"></label></div>
         </div>
+        <div class="toggle-row" id="stackThicknessRow" style="display:none">
+          <label>Stack Thickness</label>
+          <div class="toggle"><input type="checkbox" id="fCellBlocks"><label for="fCellBlocks" class="toggle-track"></label></div>
+        </div>
+        <div class="field-row" id="blockHeightRow" style="display:none"><label>Thickness</label><input type="number" id="fBlockH" value="2" min="0.5" step="0.5"><span class="unit unit-label">mm</span></div>
         <div class="toggle-row" id="testStackRow" style="display:none">
           <label>Test Stack</label>
           <div class="toggle"><input type="checkbox" id="fTestStack"><label for="fTestStack" class="toggle-track"></label></div>
@@ -1257,13 +1304,16 @@ document.querySelectorAll('.panel-label[data-target]').forEach(lbl => {
 // Stacking toggle
 $('fStack').addEventListener('change', () => {
   const on = $('fStack').checked;
+  $('stackThicknessRow').style.display = on ? 'flex' : 'none';
   $('testStackRow').style.display = on ? 'flex' : 'none';
   if (!on) {
     $('fTestStack').checked = false;
+    $('fCellBlocks').checked = false;
+    $('blockHeightRow').style.display = 'none';
     exitTestStack();
   }
   // Update collapsible max-height to accommodate newly visible rows
-  const sec = $('secPrint');
+  const sec = $('secMisc');
   if (sec && !sec.classList.contains('collapsed')) {
     sec.style.maxHeight = sec.scrollHeight + 200 + 'px';
   }
@@ -1274,7 +1324,7 @@ $('fStack').addEventListener('change', () => {
 $('fCellBlocks').addEventListener('change', () => {
   const on = $('fCellBlocks').checked;
   $('blockHeightRow').style.display = on ? 'flex' : 'none';
-  const sec = $('secPrint');
+  const sec = $('secMisc');
   if (sec && !sec.classList.contains('collapsed')) {
     sec.style.maxHeight = sec.scrollHeight + 200 + 'px';
   }
@@ -1365,6 +1415,57 @@ $('btnReset').addEventListener('click', () => { initGrid(nRows, nCols); renderGr
 // Download
 $('btnStl').addEventListener('click', downloadSTL);
 $('btnScad').addEventListener('click', downloadSCAD);
+
+// About modal
+$('btnAbout').addEventListener('click', () => {
+  $('aboutModal').classList.add('active');
+  $('aboutModal').setAttribute('aria-hidden', 'false');
+});
+$('btnAboutClose').addEventListener('click', () => {
+  $('aboutModal').classList.remove('active');
+  $('aboutModal').setAttribute('aria-hidden', 'true');
+});
+$('aboutModal').addEventListener('click', (e) => {
+  if (e.target === $('aboutModal')) {
+    $('aboutModal').classList.remove('active');
+    $('aboutModal').setAttribute('aria-hidden', 'true');
+  }
+});
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && $('aboutModal').classList.contains('active')) {
+    $('aboutModal').classList.remove('active');
+    $('aboutModal').setAttribute('aria-hidden', 'true');
+  }
+});
+
+// Parameter hover tooltips
+function setParamTooltip(id, text) {
+  const input = $(id);
+  if (!input) return;
+  input.title = text;
+  const row = input.closest('.field-row') || input.closest('.toggle-row');
+  if (!row) return;
+  const label = row.querySelector('label');
+  if (label) label.title = text;
+  const track = row.querySelector('.toggle-track');
+  if (track) track.title = text;
+}
+
+setParamTooltip('fRows', 'Number of grid rows in the layout editor.');
+setParamTooltip('fCols', 'Number of grid columns in the layout editor.');
+setParamTooltip('fWidth', 'Overall outer width of the tray.');
+setParamTooltip('fLength', 'Overall outer length of the tray.');
+setParamTooltip('fDepth', 'Interior usable height from floor to top rim.');
+setParamTooltip('fWall', 'Wall thickness for outer walls and dividers.');
+setParamTooltip('fFloor', 'Bottom floor thickness.');
+setParamTooltip('fRadius', 'Outer corner radius on tray corners.');
+setParamTooltip('fGap', 'Clearance used for print tolerance and underside fit features.');
+setParamTooltip('fLayerH', 'Printer layer height used to snap stepped chamfers.');
+setParamTooltip('fNozzle', 'Nozzle diameter reference for print tuning.');
+setParamTooltip('fCellBlocks', 'Enable underside fit tabs under each grid cell.');
+setParamTooltip('fBlockH', 'Height of underside fit tabs (stack thickness).');
+setParamTooltip('fStack', 'Enable tray-to-tray stacking features.');
+setParamTooltip('fTestStack', 'Show two trays and a cross-section to inspect mating fit.');
 
 /* ══════════════════════════════════════════════════════════
    Init
